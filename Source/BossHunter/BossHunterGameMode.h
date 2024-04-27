@@ -6,6 +6,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "BossHunterGameMode.generated.h"
 
+
 UCLASS(minimalapi)
 class ABossHunterGameMode : public AGameModeBase
 {
@@ -13,6 +14,17 @@ class ABossHunterGameMode : public AGameModeBase
 
 public:
 	ABossHunterGameMode();
+
+	virtual void PostLogin(APlayerController* NewPlayer) override;
+
+public:
+
+	void URLTravel();
+	UFUNCTION(Server, Reliable)
+	void ServerRPC_URLTravel();
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_URLTravel();
+
 };
 
 

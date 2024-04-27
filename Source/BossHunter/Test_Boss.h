@@ -15,7 +15,6 @@ class BOSSHUNTER_API ATest_Boss : public ABossHunterCharacter//
 {
 	GENERATED_BODY()
 
-
 public:
 	// Sets default values for this character's properties
 	ATest_Boss();
@@ -31,8 +30,15 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	
+
 
 public:
+
+	//박스 콤퍼넌트 매쉬의 오른손에 붙일것
+	UPROPERTY(EditAnywhere)
+	class UBoxComponent* righthandBox;
+
 	//fsm 자료형으로 변수 선언
 	UPROPERTY(EditAnywhere)
 	class UBossFsmTest* fsm;
@@ -42,8 +48,8 @@ public:
 	class UWidgetComponent* comHpBar;
 
 	//최대체력과, 현재체력
-	UPROPERTY(EditAnywhere)
-	float maxbossHP = 3;
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float maxbossHP = 1000;
 	float currbossHP = 0;
 
 	//스톤액터를 티어레이로 가지고 있자.
@@ -61,16 +67,15 @@ public:
 	UPROPERTY(EditAnywhere)
 	class USphereComponent* smashRange;
 
+	// 슬로우 푸는데 필요한 시간 재는 변수 - JINA
+	float slowTime = 0;
+
 	
-	public:
+public:
 	//데미지 프로세스 만들기
 	void DamageProcess(float damage);
 	//타겟에 대한 정의
 	void AttackTarget();
-
-
-	
-
 
 	
 };

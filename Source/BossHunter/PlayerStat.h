@@ -16,7 +16,7 @@ public:
 	float attackSpeedPoint;
 	float moveSpeedPoint;
 	//curr hp
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float healthPoint;
 	float manaPoint;
 	float coolTimePoint;

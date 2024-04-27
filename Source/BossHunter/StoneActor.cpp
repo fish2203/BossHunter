@@ -9,11 +9,12 @@
 #include "Test_Boss.h"
 #include <Kismet/GameplayStatics.h>
 #include <Particles/ParticleSystemComponent.h>
+#include "BossFsmTest.h"
 
 // Sets default values
 AStoneActor::AStoneActor()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	boxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("Box comp"));
@@ -25,7 +26,7 @@ AStoneActor::AStoneActor()
 
 	// 테스트 폭발 효과 가져오자
 	//ConstructorHelpers::FObjectFinder<UParticleSystem> tempEffect(TEXT("/Script/Engine.ParticleSystem'/Game/BulePrint/Cheezebee/Test_Particle.Test_Particle'"));
-	
+
 	//폭발 효과 아이스를 가져오자
 	ConstructorHelpers::FObjectFinder<UParticleSystem> tempEffect(TEXT("/Script/Engine.ParticleSystem'/Game/ParagonRampage/FX/Particles/Rampage_v001_IceBlue/FX/P_Rampage_Ice_Enraged_Impact.P_Rampage_Ice_Enraged_Impact'"));
 
@@ -34,7 +35,9 @@ AStoneActor::AStoneActor()
 	{
 		exploEffect = tempEffect.Object;
 	}
-	
+
+	meshComp->SetWorldScale3D(FVector(0.5));
+
 }
 
 // Called when the game starts or when spawned
@@ -47,18 +50,22 @@ void AStoneActor::BeginPlay()
 	//UGameplayStatics 인클루드
 	//ATestPlayer 인클루드
 	//AGunPlayer 인클루드
-	
-	//게임에서 플레이를 찾아라.
-	AActor* findPlayer = UGameplayStatics::GetActorOfClass(GetWorld(), AGunPlayer::StaticClass());
-	target = Cast<AGunPlayer>(findPlayer);
+
+	////게임에서 플레이를 찾아라.
+	//AActor* findPlayer = UGameplayStatics::GetActorOfClass(GetWorld(), AGunPlayer::StaticClass());
+
+	//target = Cast<AGunPlayer>(findPlayer);
+
+
+
 
 	//게임에서 보스를 찾아라.
 	AActor* findBoss = UGameplayStatics::GetActorOfClass(GetWorld(), ATest_Boss::StaticClass());
 	bossActor = Cast<ATest_Boss>(findBoss);
-	
+
 	//매쉬를 안보이게 하자.
 	meshComp->SetActive(false);
-
+	//UE_LOG(LogTemp, Warning, TEXT("stoneactor beginplay mesh false "));
 }
 
 // Called every frame
@@ -68,20 +75,20 @@ void AStoneActor::Tick(float DeltaTime)
 
 	if (isThorw == true)
 	{
-	StoneMove();
+		StoneMove();
 	}
 
 }
 
 void AStoneActor::StoneSpawn()
-{	
+{
 	// 총알 생성
 	/*AStoneActor* stoneBullet = GetWorld()->SpawnActor<AStoneActor>(bossActor->stoneFactory, bossActor->GetActorLocation(), FRotator::ZeroRotator);*/
 	GetWorld()->SpawnActor<AStoneActor>(bossActor->stoneFactory, bossActor->GetActorLocation(), FRotator::ZeroRotator);
 }
 
 void AStoneActor::StoneFire()
-{	
+{
 	FVector bossPos = bossActor->GetActorLocation();
 	// Overlap 충돌이 되었을 때 호출되는 함수 등록 (Delegate = 함수를 담을수 있는 변수)
 	boxComp->OnComponentBeginOverlap.AddDynamic(this, &AStoneActor::OnOverlap);
@@ -91,60 +98,88 @@ void AStoneActor::StoneFire()
 
 void AStoneActor::StoneMove()
 {
+	//UStaticMeshComponent
 	meshComp->SetActive(true);
 	meshComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	if (target == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT(" target is null"));
 
+		return;
+	}
 	//플레이어의 위치를 구하자.
 	FVector playerPos = target->GetActorLocation();
+
 	//보스 위치를 구하자.
 	FVector bossPos = bossActor->GetActorLocation();
 	//내 위치를 빼자.
 	dir = playerPos - GetActorLocation();
 	dir.Normalize();
+	int32 randStone = bossActor->fsm->randSkill;
 
-	// 플레이어를 추적하는 돌맹이
-	//내위치+ 방향값(타겟 방향 * 이동속도 * 시간값)
-	/*FVector p0 = GetActorLocation();
-	FVector vt = dir * moveSpeed * GetWorld()->GetDeltaSeconds();
-	FVector p = p0 + vt;
-	SetActorLocation(p);*/
+	if (randStone == 0)
+	{
+		// 플레이어를 추적하는 돌맹이
+		//내위치+ 방향값(타겟 방향 * 이동속도 * 시간값)
+		FVector p0 = GetActorLocation();
+		FVector vt = dir * moveSpeed * GetWorld()->GetDeltaSeconds();
+		FVector p = p0 + vt;
+		SetActorLocation(p);
 
-	//로그를 찍자.
-	//UE_LOG(LogTemp, Warning, TEXT("stone actor StoneFire chase"));
+		//로그를 찍자.
+		//UE_LOG(LogTemp, Warning, TEXT("stone actor StoneFire chase"));
+		//디버그 라인 그리기
+		DrawDebugLine(GetWorld(), bossPos, playerPos, FColor::Red);
+		ThrowSkillLinetrace();
 
-	//플레이어 방향으로 전진하는 돌맹이
-	
-	//플레이어 위치에서 보스위치를 방향을 빼자
-	FVector p0 = playerPos - bossPos;
-	//방향값을 노말라이즈하자.
-	p0.Normalize();
-	//보스의 포워드 벡터에서 플레이어 방향으로 돌이 움직이게 하자, 속도, 시간
-	FVector p1 = p0 * moveSpeed * GetWorld()->GetDeltaSeconds();
-	//내 위치에 p1를 더하자.
-	FVector p2 = GetActorLocation() + p1;
-	//내위치를 p2로 이동시키자.
-	SetActorLocation(p2);
+	}
 
-	//출력하기
-	//UE_LOG(LogTemp, Warning, TEXT("stone actor StoneFire foward"));
+	else
+	{
+		//플레이어 방향으로 전진하는 돌맹이
+		//플레이어 위치에서 보스위치를 방향을 빼자
+		FVector p0 = bossActor->GetActorForwardVector();
+		//방향값을 노말라이즈하자.
+		p0.Normalize();
+		//보스의 포워드 벡터에서 플레이어 방향으로 돌이 움직이게 하자, 속도, 시간
+		FVector p1 = p0 * moveSpeed * GetWorld()->GetDeltaSeconds();
+		//내 위치에 p1를 더하자.
+		FVector p2 = GetActorLocation() + p1;
+		//내위치를 p2로 이동시키자.
+		SetActorLocation(p2);
 
-	//디버그 라인 그리기
-	DrawDebugLine(GetWorld(), bossPos, playerPos, FColor::Red);
+		//출력하기
+		//UE_LOG(LogTemp, Warning, TEXT("stone actor StoneFire foward"));
+
+		//디버그 라인 그리기
+		DrawDebugLine(GetWorld(), bossPos, playerPos, FColor::Red);
+		ThrowSkillLinetrace();
+
+	}
 
 	//시간누적
-	currTime += GetWorld()->GetDeltaSeconds();
+	currTime += GetWorld()->DeltaTimeSeconds;
 	//2초지나면 액터 파괴
 	if (currTime > 2)
 	{
+		//UE_LOG(LogTemp, Warning, TEXT(" StoneMove 2 seconds"));
 		currTime = 0;
 		isThorw = false;
-		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), exploEffect, GetActorLocation(), GetActorRotation());
-		Destroy();
 		
+		MultiRPC_ShowStoneEffect();
+
+		Destroy();
+		UE_LOG(LogTemp, Warning, TEXT(" 22222222222"));
 	}
-
-
+		
 }
+
+
+void AStoneActor::MultiRPC_ShowStoneEffect_Implementation()
+{
+	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), exploEffect, GetActorLocation(), GetActorRotation());
+}
+
 
 void AStoneActor::SetAcitve(bool isActive)
 {
@@ -163,11 +198,60 @@ void AStoneActor::SetAcitve(bool isActive)
 		meshComp->SetVisibility(isActive);
 		// 충돌 하지 않게 하자
 		meshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	}
+
+}
+
+void AStoneActor::ThrowSkillLinetrace()
+{
+	//ServerRPC_ThrowSkillLinetrace();
+	//AActor* findActor = UGameplayStatics::GetActorOfClass(GetWorld(), AGunPlayer::StaticClass());
+
+	UActorComponent* findFSM = bossActor->fsm;
+
+	//UE_LOG(LogTemp, Warning, TEXT("boss fsm SkillLinetrace "));
+	//충돌결과 변수
+	FHitResult hitInfo;
+	//시작점
+	FVector startPos = this->GetActorLocation();
+	//끝점
+	FVector endPos = this->GetActorLocation() + this->GetActorForwardVector() * 100;
+	FCollisionQueryParams params;
+	params.AddIgnoredActor(bossActor);
+
+	bool isHit = GetWorld()->LineTraceSingleByChannel(hitInfo, startPos, endPos, ECollisionChannel::ECC_Visibility, params);
+
+	if (isHit)
+	{
+		// 만약에 맞은 Player 라면
+		//hitInfo.GetActor()->GetName().Contains(TEXT("player"));
+		//AActor* hitActor = Cast<AGunPlayer>(hitInfo.GetActor());
+		AActor* hitActor = hitInfo.GetActor();
+		//히트 액터이름에 플레이어가 있다면
+		if (hitActor != nullptr)
+		{
+			if (hitActor->GetName().Contains(TEXT("player")))
+			{
+				// 데미지 주자
+				bossActor->fsm->PlayerDamageProcess(50);
+				bossActor->fsm->ChangeState(EEnemyState::ATTACK_DELAY);
+				
+				//효과를 스폰하자
+				MultiRPC_ShowStoneEffect();
+				
+				Destroy();
+
+			}
+
+		}
+
+		DrawDebugLine(GetWorld(), startPos, startPos + endPos, FColor::Red);
 	}
 }
 
-void AStoneActor::OnOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
+	void AStoneActor::OnOverlap(UPrimitiveComponent * abc, AActor * OtherActor, UPrimitiveComponent * OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
+	{
 
 		if (OtherActor->GetName().Contains(TEXT("player")))
 		{

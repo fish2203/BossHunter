@@ -7,6 +7,7 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include <../../../../../../../Source/Runtime/Engine/Classes/GameFramework/ProjectileMovementComponent.h>
 #include "GunPlayer.h"
+#include <../../../../../../../Source/Runtime/Engine/Public/KismetTraceUtils.h>
 
 // Sets default values
 AGunPlayer_Bomb::AGunPlayer_Bomb()
@@ -21,10 +22,11 @@ AGunPlayer_Bomb::AGunPlayer_Bomb()
 	ProjectileMovementComponent->SetUpdatedComponent(GetRootComponent());
 	ProjectileMovementComponent->InitialSpeed = 3000;
 	ProjectileMovementComponent->MaxSpeed = 3000;
-	/** 속도에 따른 로테이션 변화 X */
-	ProjectileMovementComponent->bRotationFollowsVelocity = false;
+	/** 속도에 따른 로테이션 변화 */
+	ProjectileMovementComponent->bRotationFollowsVelocity = true;
 	/** 바운스 X */
-	ProjectileMovementComponent->bShouldBounce = true;
+	ProjectileMovementComponent->bShouldBounce = false;
+	bReplicates = true;
 }
 
 // Called when the game starts or when spawned
@@ -50,6 +52,7 @@ void AGunPlayer_Bomb::Tick(float DeltaTime)
 	FHitResult hitInfo;
 	FCollisionQueryParams param;
 	param.AddIgnoredActor(this);
+	param.AddIgnoredActor(GetOwner());
 	FVector startPosition = GetActorLocation();
 	FVector EndPosition = GetActorLocation() + GetActorForwardVector();
 
@@ -64,7 +67,7 @@ void AGunPlayer_Bomb::Tick(float DeltaTime)
 			{
 				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), particleSystem, GetActorLocation());
 				AGunPlayer* player = Cast<AGunPlayer>(GetOwner());
-				player->AttackBoss(3);
+				player->ServerRPC_AttackBoss(3);
 			}
 			Destroy();
 		}

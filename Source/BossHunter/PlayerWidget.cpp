@@ -8,6 +8,12 @@
 #include <Components/ProgressBar.h>
 #include "Test_Boss.h"
 #include "BossFsmTest.h"
+#include "BossHunterGameMode.h"
+#include "BossRoomGameStateBase.h"
+#include <Components/Button.h>
+#include <Components/Image.h>
+//UGameplayStatics
+
 
 
 void UPlayerWidget::NativeOnInitialized()
@@ -34,14 +40,35 @@ void UPlayerWidget::NativeOnInitialized()
         }
     }
 
+
+
     //float maxbossHP = 3;
     //float currbossHP = 0;
     
     //임시로 보스를 찾을때
   /*  AActor * BossActor = UGameplayStatics::GetActorOfClass(GetWorld(), ATest_Boss::StaticClass());
     monster = Cast<ATest_Boss>(BossActor);*/
-
+    if (monster != nullptr)
+    {
     monster->currbossHP = monster->maxbossHP;
+    text_MonsterHP->SetText(FText::FromString(FString::Printf(TEXT("%0.2f / %0.2f"), monster->currbossHP, monster->maxbossHP)));
+    //UE_LOG(LogTemp, Warning, TEXT(" boss hp : %f"), monster->currbossHP);
+    }
+
+    gamestate = Cast<ABossRoomGameStateBase>(GetWorld()->GetGameState());
+
+    //UButton
+    Btn_restart->OnClicked.AddDynamic(this, &UPlayerWidget::OnClickRestarGame);
+
+    // inventory
+    inventory.Add(slot_1);
+    inventory.Add(slot_2);
+    inventory.Add(slot_3);
+    inventory.Add(slot_4);
+    inventory.Add(slot_5);
+    inventory.Add(slot_6);
+    inventory.Add(slot_7);
+    inventory.Add(slot_8);
 }
 
 void UPlayerWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -51,7 +78,7 @@ void UPlayerWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
         MonsterHP->SetPercent(monster->currbossHP / monster->maxbossHP);
     }
     else {
-        UE_LOG(LogTemp, Warning, TEXT("Player Widget: No Monster"));
+        //UE_LOG(LogTemp, Warning, TEXT("Player Widget: No Monster"));
     }
     if (gunPlayer) {
         HPBarText->SetText(FText::FromString(FString::Printf(TEXT("%0.2f / %0.2f"), gunPlayer->statment.healthPoint, gunPlayer->statment.fullHP)));
@@ -79,6 +106,22 @@ void UPlayerWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
         else {
             ExplainText->SetText(FText::FromString(FString::Printf(TEXT(" "))));
         }
+        //보스의 현재체력상태를 위젯에 갱신
+        if(monster != nullptr)
+        text_MonsterHP->SetText(FText::FromString(FString::Printf(TEXT("%0.2f / %0.2f"), monster->currbossHP, monster->maxbossHP)));
+    
+    }
+}
+
+void UPlayerWidget::ChangeInventory()
+{
+    int32 i = 0;
+    for (int32 index : player->itemIndexArray)
+    {
+        FItem* item = gamestate->itemDataTable->FindRow<FItem>(*FString::FromInt(index), TEXT(""));
+        //UImage 인클루드
+        inventory[i]->SetBrushFromTexture(item->image);
+        i++;
     }
 }
 
@@ -101,6 +144,7 @@ void UPlayerWidget::DamageProgressBoss(float damage)
         
        //ABossFsmTest
         monsterFsm->ChangeState(EEnemyState::DIE);
+        monster->SetActorEnableCollision(false);
     }
 
     //만약에 HP 가 0보다 크면
@@ -115,5 +159,17 @@ void UPlayerWidget::DamageProgressBoss(float damage)
     //    // DIE 로 상태로 전환
     //    fsm->ChangeState(EEnemyState::DIE);
     //}
+}
+
+void UPlayerWidget::OnClickRestarGame()
+{
+    
+    AGameModeBase* findgm = UGameplayStatics::GetGameMode(GetWorld());
+    bhGameMode = Cast<ABossHunterGameMode>(findgm);
+    if (findgm == nullptr)
+    {
+    return;
+    }
+    bhGameMode->URLTravel();
 }
 

@@ -22,6 +22,7 @@ public:
 	class AGunPlayer* gunPlayer;
 	class ATest_Boss* monster;
 	class UBossFsmTest* monsterFsm;
+	class ABossHunterGameMode* gamemode;
 
 	UPROPERTY(meta = (BindWidget))
 	class UProgressBar* HealthBar;
@@ -33,8 +34,12 @@ public:
 	class UTextBlock* MPBarText;
 	UPROPERTY(meta=(BindWidget))
 	class UTextBlock* statText;
+	//보스의 체력 프로그레스바
 	UPROPERTY(meta=(BindWidget))
 	class UProgressBar* MonsterHP;
+	//보스의 체력 텍스트
+	UPROPERTY(meta=(BindWidget))
+	class UTextBlock* text_MonsterHP;
 	UPROPERTY(meta=(BindWidget))
 	class UProgressBar* Q_Btn;
 	UPROPERTY(meta=(BindWidget))
@@ -53,9 +58,39 @@ public:
 	class UTextBlock* F_Text;
 	UPROPERTY(meta=(BindWidget))
 	class UTextBlock* R_Text;
+	//다시하기 버튼
+	UPROPERTY(meta=(BindWidget))
+	class UButton* Btn_restart;
+	UPROPERTY()
+	class ABossRoomGameStateBase* gamestate;
+	UPROPERTY()
+	class ABossHunterGameMode* bhGameMode;
+
+	// Inventory
+	UPROPERTY(meta=(BindWidget))
+	class UImage* slot_1;
+	UPROPERTY(meta=(BindWidget))
+	class UImage* slot_2;
+	UPROPERTY(meta=(BindWidget))
+	class UImage* slot_3;
+	UPROPERTY(meta=(BindWidget))
+	class UImage* slot_4;
+	UPROPERTY(meta=(BindWidget))
+	class UImage* slot_5;
+	UPROPERTY(meta=(BindWidget))
+	class UImage* slot_6;
+	UPROPERTY(meta=(BindWidget))
+	class UImage* slot_7;
+	UPROPERTY(meta=(BindWidget))
+	class UImage* slot_8;
+	TArray<UImage*> inventory;
+	UFUNCTION()
+	void ChangeInventory();
 
 	UFUNCTION(BlueprintCallable)
 	void DamageProgressBoss(float damage);
+	UFUNCTION()
+	void OnClickRestarGame();
 
 
 };

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BossHunterCharacter.h"
+#include <Net/UnrealNetwork.h>
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -17,6 +18,11 @@
 #include "PlayerWidget.h"
 #include "Test_Boss.h"
 #include <../../../../../../../Source/Runtime/Engine/Classes/Kismet/KismetMathLibrary.h>
+#include "StoreWidget.h"
+#include "BossRoomGameStateBase.h"
+#include <../../../../../../../Source/Runtime/UMG/Public/Components/WidgetSwitcher.h>
+#include "Blueprint/UserWidget.h"
+#include "Components/SlateWrapperTypes.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -71,31 +77,54 @@ ABossHunterCharacter::ABossHunterCharacter()
 	{
 		allPlayerWidgetInstance = tempWidget.Class;
 	}
+
+	ConstructorHelpers::FClassFinder<UStoreWidget> tempStoreWidget(TEXT("/Script/UMGEditor.WidgetBlueprint'/Game/BulePrint/BP_StoreWidget.BP_StoreWidget_C'"));
+	if (tempWidget.Succeeded())
+	{
+		allPlayerStoreWidgetInstance = tempStoreWidget.Class;
+	}
+
+	bReplicates = true;
+	itemIndexArray.Empty();
+}
+
+void ABossHunterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ABossHunterCharacter, statment);
 }
 
 void ABossHunterCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-
+	gamestate = Cast<ABossRoomGameStateBase>(GetWorld()->GetGameState());
 	//Add Input Mapping Context
-	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+	if (IsLocallyControlled()) {
+		if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
-			if (IsValid(allPlayerWidgetInstance)) {
-				allPlayerWidget = Cast<UPlayerWidget>(CreateWidget(GetWorld(), allPlayerWidgetInstance));
-				if (IsValid(allPlayerWidget)) {
-					allPlayerWidget->SetOwningPlayer(PlayerController);
-					allPlayerWidget->AddToViewport();
-					PlayerController->bShowMouseCursor = true;
+			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+			{
+				Subsystem->AddMappingContext(DefaultMappingContext, 0);
+				if (IsValid(allPlayerWidgetInstance)) {
+					allPlayerWidget = Cast<UPlayerWidget>(CreateWidget(GetWorld(), allPlayerWidgetInstance));
+					if (IsValid(allPlayerWidget)) {
+						allPlayerWidget->SetOwningPlayer(PlayerController);
+						allPlayerWidget->AddToViewport();
+						PlayerController->bShowMouseCursor = true;
+					}
+				}
+				if (IsValid(allPlayerStoreWidgetInstance)) {
+					allPlayerStoreWidget = Cast<UStoreWidget>(CreateWidget(GetWorld(), allPlayerStoreWidgetInstance));
+					if (IsValid(allPlayerStoreWidget)) {
+						allPlayerStoreWidget->SetOwningPlayer(PlayerController);
+						allPlayerStoreWidget->AddToViewport();
+					}
 				}
 			}
 		}
 	}
-
-	
 
 	TArray<AActor*> ActorsWithTag;
 	UGameplayStatics::GetAllActorsWithTag(GetWorld(), TEXT("boss"), ActorsWithTag);
@@ -123,10 +152,7 @@ void ABossHunterCharacter::Ability_R_Action()
 	playerFSM->SetPlayerSkillState(playerSkillSet::R_Skill);
 }
 
-void ABossHunterCharacter::Ability_R_End_Action()
-{
-
-}
+void ABossHunterCharacter::Ability_R_End_Action(){}
 
 void ABossHunterCharacter::Ability_F_Action()
 {
@@ -140,35 +166,83 @@ void ABossHunterCharacter::Ability_Ev_Action()
 
 void ABossHunterCharacter::Ability_Normal_Action()
 {
+	if (IsLocallyControlled())
+	{
+		FHitResult endInfo;
+		APlayerController* playerController = Cast<APlayerController>(Controller);
+		playerController->GetHitResultUnderCursor(ECC_Visibility, false, endInfo);
+		if (endInfo.GetActor()->ActorHasTag(TEXT("Store")))
+		{
+			allPlayerStoreWidget->WidgetSwitcher->SetVisibility(ESlateVisibility::Visible);
+			return;
+		}
+	}
 	playerFSM->SetPlayerSkillState(playerSkillSet::Plain);
 }
 
-void ABossHunterCharacter::Q_Action()
+void ABossHunterCharacter::Q_Action(){}
+
+void ABossHunterCharacter::E_Action(){}
+
+void ABossHunterCharacter::R_Action(){}
+
+void ABossHunterCharacter::F_Action(){}
+
+void ABossHunterCharacter::Ev_Action(){}
+
+void ABossHunterCharacter::Normal_Action(){}
+
+void ABossHunterCharacter::ChangeStat()
 {
-	
+	float _attackPoint = 1;
+	float _defancePoint = 1;
+	float _attackSpeedPoint = 1;
+	float _moveSpeedPoint = 1;
+	float _healthPoint = 1;
+	float _manaPoint = 1;
+	float _coolTimePoint = 1;
+	float _fullHP = 1;
+	float _fullMP = 1;
+
+	/*for (int32 itemindex : itemIndexArray)
+	{
+		FItem* item = gamemode->itemDataTable->FindRow<FItem>(*FString::FromInt(itemindex), TEXT(""));
+		_attackPoint *= item->attackPoint;
+		_defancePoint *= item->defancePoint;
+		_attackSpeedPoint *= item->attackSpeedPoint;
+		_moveSpeedPoint *= item->moveSpeedPoint;
+		_healthPoint *= item->healthPoint;
+		_manaPoint *= item->manaPoint;
+		_coolTimePoint *= item->coolTimePoint;
+		_fullHP *= item->healthPoint;
+		_fullMP *= item->manaPoint;
+	}*/
+
+	int32 itemindex = itemIndexArray[itemIndexArray.Num() - 1];
+	FItem* item = gamestate->itemDataTable->FindRow<FItem>(*FString::FromInt(itemindex), TEXT(""));
+	statment.attackPoint *= item->attackPoint;
+	statment.defancePoint *= item->defancePoint;
+	statment.attackSpeedPoint *= item->attackSpeedPoint;
+	statment.moveSpeedPoint *= item->moveSpeedPoint;
+	statment.healthPoint *= item->healthPoint;
+	statment.manaPoint *= item->manaPoint;
+	statment.coolTimePoint *= item->coolTimePoint;
+	statment.fullHP *= item->healthPoint;
+	statment.fullMP *= item->manaPoint;
+
+	/*statment.attackPoint *= _attackPoint;
+	statment.defancePoint *= _defancePoint;
+	statment.attackSpeedPoint *= _attackSpeedPoint;
+	statment.moveSpeedPoint *= _moveSpeedPoint;
+	statment.healthPoint *= _healthPoint;
+	statment.manaPoint *= _manaPoint;
+	statment.coolTimePoint *= _coolTimePoint;
+	statment.fullHP *= _healthPoint;
+	statment.fullMP *= _manaPoint;*/
+	CoolTimePointChange();
 }
 
-void ABossHunterCharacter::E_Action()
-{
-
-}
-
-void ABossHunterCharacter::R_Action()
-{
-
-}
-
-void ABossHunterCharacter::F_Action()
-{
-
-}
-
-void ABossHunterCharacter::Ev_Action()
-{
-
-}
-
-void ABossHunterCharacter::Normal_Action()
+void ABossHunterCharacter::CoolTimePointChange()
 {
 
 }
@@ -251,7 +325,5 @@ void ABossHunterCharacter::Look(const FInputActionValue& Value)
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
-
-		
 	}
 }

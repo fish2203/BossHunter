@@ -73,10 +73,17 @@ public:
 public:
 	ABossHunterCharacter();
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<UUserWidget> allPlayerWidgetInstance;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	class UPlayerWidget* allPlayerWidget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UUserWidget> allPlayerStoreWidgetInstance;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	class UStoreWidget* allPlayerStoreWidget;
 
 	class ATest_Boss* monster;
 	
@@ -103,6 +110,8 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
+
+
 public:
 	// player
 	UPROPERTY(BlueprintReadWrite)
@@ -123,12 +132,22 @@ public:
 	virtual void Ev_Action();
 	virtual void Normal_Action();
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	class UPlayerStat* playerStat;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Replicated)
 	Fstat statment;
 
+public:
+	UPROPERTY(EditAnywhere)
+	int32 gold = 100;
+	UPROPERTY(EditAnywhere)
+	TArray<int32> itemIndexArray;
+	UPROPERTY()
+	class ABossRoomGameStateBase* gamestate;
+	UFUNCTION()
+	void ChangeStat();
+	virtual void CoolTimePointChange();
 
 };
 

@@ -25,6 +25,7 @@ AGunPlayer_CallBomb::AGunPlayer_CallBomb()
 			monster = Cast<ATest_Boss>(Actor);
 		}
 	}
+	bReplicates = true;
 }
 
 // Called when the game starts or when spawned
@@ -43,10 +44,10 @@ void AGunPlayer_CallBomb::Tick(float DeltaTime)
 		player = Cast<AGunPlayer>(GetOwner());
 
 	if(IsOverlappingActor(monster))
-		player->AttackBoss(DeltaTime);
+		player->ServerRPC_AttackBoss(DeltaTime);
 
 	time += DeltaTime;
-	if (time >= 7.0f)
+	if (time >= 5.0f)
 		Destroy();
 }
 

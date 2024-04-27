@@ -31,7 +31,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	class UStaticMeshComponent* meshComp;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere)
 	class AGunPlayer* target;
 	
 	UPROPERTY()
@@ -61,10 +61,15 @@ public:
 	void StoneFire();
 	UFUNCTION()
 	void StoneMove();
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_ShowStoneEffect();
 
 
 	UFUNCTION()
 	void SetAcitve(bool isActive);
+
+	//값을 못찾으면 헤더 함수가 지워졌는지 확인해보자.
+	void ThrowSkillLinetrace();
 	
 	//Delegate 에 등록되는 함수는 UFUNCTION 을 꼭 써주자!
 	UFUNCTION()

@@ -34,7 +34,6 @@ enum class EAttackType : uint8
 };
 
 
-
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class BOSSHUNTER_API UBossFsmTest : public UActorComponent
 {
@@ -55,11 +54,18 @@ public:
 		
 	// 현재 나의 상태를 담을 변수
 	EEnemyState currState = EEnemyState::IDLE;
+	EEnemyState currDamage = EEnemyState::DAMAGE;
 
 	// 타겟 (Player)
 	UPROPERTY()
 	class AGunPlayer* target;
 
+	//멀티플레이용 배열변수
+	UPROPERTY()
+	TArray<class AGunPlayer*> allTarget;
+
+	
+	
 	// 이 컴포넌트가 어떤 액터에 붙어있는지
 	UPROPERTY()
 	class ATest_Boss* bossActor;
@@ -77,16 +83,37 @@ public:
 	class UAnimMontage* montage;
 
 	// 쫓아 갈 수 있는 범위 (인지 범위)
-	UPROPERTY(EditAnywhere)
-	float traceRange = 1000;
-
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float traceRange = 1500;
 	// 공격 할 수 있는 범위 (공격 범위)
-	UPROPERTY(EditAnywhere)
-	float attackRange = 200;
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float attackRange = 400;
+	//펀치 공격 사거리
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float punchDagmageZone = 500;
+	//플레이어 재추적 거리
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float playerReChase = 800;
+	//돌진 공격 사거리
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float chargeDamageZone = 200;
+	//돌진 전진 속도
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float chargeForwardSpeed = 800;	
+	//돌진 추적 속도
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float chargeChaseSpeed = 500;
 
+	
+	//광역 공격의 딜레이
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float smashDamageDelay = 0.3;
+	//광역 공격의 범위
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float smashDamageZone = 1000;
 	// 내가 움직일 수 있는 범위
-	UPROPERTY(EditAnywhere)
-	float moveRange = 3000;
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	float moveRange = 10000;
 
 	// 현재시간
 	UPROPERTY()
@@ -104,13 +131,18 @@ public:
 	// IDLE 상태 대기 시간
 	UPROPERTY(EditAnywhere)
 	float idleDelayTime = 2;
-	UPROPERTY(EditAnywhere)
-	float chargeSpeed = 500;
 
 	// AI Controller
 	UPROPERTY(EditAnywhere)
 	class AAIController* ai;
 
+
+	UPROPERTY()
+	class UParticleSystem* punchEffect;
+	UPROPERTY()
+	class UParticleSystem* chargeEffect;
+	UPROPERTY()
+	class UParticleSystem* throwEffect;
 	UPROPERTY()
 	class UParticleSystem* smashEffect;
 
@@ -124,16 +156,23 @@ public:
 	FVector originPos;
 	// Patrol 해야하는 랜덤한 위치
 	FVector patrolPos;
-
-	//UPROPERTY()
-	FVector posCheck;
-
+	
+	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
+	int32 randAttackAnim = 0;
+	int32 randSkill = 0;
+	bool isChase = false;
+	bool isPunch = false;
 	bool isCharge = false; 
-
+	bool isThrow = false;
+	bool isSmash = false;
 
 public:
+	// 애니메이션 동기화
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_SetAnimation(EEnemyState s, int attackType);
 	// 상태가 바뀔때 한번 실행 되는 함수
 	void ChangeState(EEnemyState s);
+	
 	// 대기
 	void UpdateIdle();
 	// 이동
@@ -153,36 +192,63 @@ public:
 	bool IsWaitComplete(float delay);
 
 	// 플레이어를 쫓아 갈 수 있는 상황인지
+	// 움직임은 블루프린트에서 replicate 해서 동기화 됨.
 	bool CanTrace();
+	void MultiPlayTarget();
+	//bool HuntStart();
+	
 
 	//플레이어 쪽을 바라보자.
 	void BossViewAngle();
 
+	//플레이어 추적
+	void ChasePlayer();
 	// 어택타입을 고른다.
 	void ChangeAttackType();
-
+	
 	//펀치스킬
 	void PunchSkill();
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_PunchSkillEffect();
+	
 
 	//차지스킬
 	void ChargeSkill();
-
+	//차지 앞으로
+	void ChargeForward();
+	//차지 추적
+	void ChargeChase();
 	//돌던지기 스킬
 	void ThorwSkill();
-
 	//범위스킬
 	UFUNCTION()
 	void SmashSkill();
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_SmashSkillEffect();
+	
+
 
 	//스킬 딜레이
-
 	bool skillDelay(float delay);
+	//스킬 딜레이
+	void DamageDelayToSkill(float delay);
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_DamageDelayToSkill();
 
+	//차지스킬 라인트레이스
+	void ChargeSkillLinetrace();
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_ChargeSkillEffect();
+	
 	//오버렙 함수
+	//딜리게이트 = 함수담는변수 , UFUNCTION()을 써줘야함.
 	UFUNCTION()
-	void ThrowSkillOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void SkillOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
 
 	//
 	void PlayerDamageProcess(float damage);
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_PlayerDamageProcess(float damage);
 
 };
