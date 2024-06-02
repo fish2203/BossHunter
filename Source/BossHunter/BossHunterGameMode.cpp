@@ -7,7 +7,8 @@
 #include <Kismet/GameplayStatics.h>
 #include "Test_Boss.h"
 #include "GunPlayer.h"
-#include "BossFsmTest.h"
+#include "Boss/BossFsmTest.h"
+#include "PlayerScoreComp.h"
 
 ABossHunterGameMode::ABossHunterGameMode()
 {
@@ -33,6 +34,13 @@ void ABossHunterGameMode::PostLogin(APlayerController* NewPlayer)
 	// player ¸¦ boss - fsm - allTarget ³ÖÀÚ.
 	AGunPlayer* player = Cast< AGunPlayer>(NewPlayer->GetPawn());
 	boss->fsm->allTarget.Add(player);
+
+	UActorComponent* findActorComp = player->FindComponentByClass<UPlayerScoreComp>();
+	UPlayerScoreComp* playerScore = Cast<UPlayerScoreComp>(findActorComp);
+
+	//UUserWidget* findWidget = Cast<UPlayerScoreWidget>(GetWorld());
+	//playerScoreUI->AddToViewport(0);
+
 }
 
 void ABossHunterGameMode::URLTravel()
@@ -41,6 +49,8 @@ void ABossHunterGameMode::URLTravel()
 	{
 		ServerRPC_URLTravel();
 	}
+
+
 }
 
 void ABossHunterGameMode::ServerRPC_URLTravel_Implementation()

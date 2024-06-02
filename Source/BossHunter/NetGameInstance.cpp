@@ -7,6 +7,19 @@
 #include <OnlineSessionSettings.h>
 #include <Online/OnlineSessionNames.h>
 #include "MoveBossZoneWidget.h"
+#include "PlayerScoreWidget.h"
+
+UNetGameInstance::UNetGameInstance()
+{
+	//플레이어 스코어 위젯을 생성
+	//UPlayerScoreWidget
+	/*ConstructorHelpers::FClassFinder<UPlayerScoreWidget> tempPlayerScoreWidget(TEXT("/Script/UMGEditor.WidgetBlueprint'/Game/BulePrint/Cheezebee/Widget/WBP_PlayerScoreWidget.WBP_PlayerScoreWidget_C'"));
+	if (tempPlayerScoreWidget.Succeeded())
+	{
+		playerScoreUIPakage = tempPlayerScoreWidget.Class;
+	}*/
+
+}
 
 // OnlineSessionInterface 통해서 한다.
 // 세션을 만든다. 
@@ -36,13 +49,19 @@ void UNetGameInstance::Init()
 		sessionInterface->OnJoinSessionCompleteDelegates.AddUObject(this, &UNetGameInstance::OnJoinSessionComplete);
 	}
 
-
+	//보스존으로 이동하는 위젯
 	movewidgetPointer = CreateWidget<UMoveBossZoneWidget>(GetWorld(), moveWidgetPackage);
-	movewidgetPointer->AddToViewport();
+	movewidgetPointer->AddToViewport(1);
 
 
 	//movewidgetPointer->SetVisibility(true);
 	//movebosszoneWidget->SetVisibility(false);
+
+	//플레이어 스코어 위젯을 붙이자
+	//UPlayerScoreWidget
+	/*playerScoreUI = CreateWidget<UPlayerScoreWidget>(GetWorld(), playerScoreUIPakage);
+	playerScoreUI->AddToViewport(1);
+	playerScoreUI->SetVisibility(ESlateVisibility::Visible);*/
 }
 
 void UNetGameInstance::CreateMySession(FString roomName, int32 maxPlayer)

@@ -1,23 +1,29 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ï»¿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "BossFsmTest.h"
 #include <Kismet/GameplayStatics.h>
-#include "TestPlayer.h"
-#include "Test_Boss.h"
+#include "BossHunter/TestPlayer.h"
+#include "BossHunter/Test_Boss.h"
 #include "AnimBossTest.h"
 #include "DrawDebugHelpers.h"
 #include "Runtime/Engine/Classes/Components/CapsuleComponent.h"
 #include <../../../../../../../Source/Runtime/AIModule/Classes/AIController.h>
-#include "GunPlayer.h"
-#include "StoneActor.h"
+#include "BossHunter/GunPlayer.h"
+#include "BossHunter/StoneActor.h"
 #include <Components/SphereComponent.h>
 #include <Kismet/GameplayStatics.h>
 #include <Particles/ParticleSystemComponent.h>
-#include "PlayerStat.h"
-#include "BossHunterCharacter.h"
+#include "BossHunter/PlayerStat.h"
+#include "BossHunter/BossHunterCharacter.h"
 #include <../../../../../../../Source/Runtime/CoreUObject/Public/UObject/ObjectMacros.h>
 #include <Components/BoxComponent.h>
+#include <GameFramework/CharacterMovementComponent.h>
+//í”Œë ˆì´ì–´ ì ìˆ˜ ì»´í¬ë„ŒíŠ¸
+#include <BossHunter/PlayerScoreComp.h>
+//í”Œë ˆì´ì–´ ì ìˆ˜ ìœ„ì ¯
+#include "BossHunter/PlayerScoreWidget.h"
+#include "../BossSound.h"
 
 
 // Sets default values for this component's properties
@@ -25,39 +31,39 @@ UBossFsmTest::UBossFsmTest()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 
-	// montage ÀĞ¾î¿ÀÀÚ
+	// montage ì½ì–´ì˜¤ì
 	ConstructorHelpers::FObjectFinder<UAnimMontage> tempMontage(TEXT("/Script/Engine.AnimMontage'/Game/BulePrint/Cheezebee/AM_TestBoss.AM_TestBoss'"));
 	if (tempMontage.Succeeded())
 	{
 		montage = tempMontage.Object;
 	}
 
-	//punchÈ¿°ú, 
+	//punchíš¨ê³¼, 
 	ConstructorHelpers::FObjectFinder<UParticleSystem> tempPunchEffect(TEXT("/Script/Engine.ParticleSystem'/Game/ParagonRampage/FX/Particles/Rampage_v001_IceBlue/FX/P_Rampage_Ice_Melee_Impact.P_Rampage_Ice_Melee_Impact'"));
 
 	if (tempPunchEffect.Succeeded())
 	{
 		punchEffect = tempPunchEffect.Object;
 	}
-	//chargeEffectÈ¿°ú, ½º¸Å½¬¾ÆÅ©
+	//chargeEffectíš¨ê³¼, ìŠ¤ë§¤ì‰¬ì•„í¬
 	ConstructorHelpers::FObjectFinder<UParticleSystem> tempChargeEffect(TEXT("/Script/Engine.ParticleSystem'/Game/ParagonRampage/FX/Particles/Rampage_v001_IceBlue/FX/P_Rampage_Ice_SmashArc.P_Rampage_Ice_SmashArc'"));
 
 	if (tempChargeEffect.Succeeded())
 	{
 		chargeEffect = tempChargeEffect.Object;
 	}
-	//throwEffectÈ¿°ú
+	//throwEffectíš¨ê³¼
 	ConstructorHelpers::FObjectFinder<UParticleSystem> tempThrowEffect(TEXT("/Script/Engine.ParticleSystem'/Game/ParagonRampage/FX/Particles/Rampage_v001_IceBlue/FX/P_Rampage_Ice_Melee_Impact.P_Rampage_Ice_Melee_Impact'"));
 
 	if (tempThrowEffect.Succeeded())
 	{
 		throwEffect = tempThrowEffect.Object;
 	}
-	//smashEffectÈ¿°ú, ¾ÆÀÌ½º Ä³½ºÆ® ºÒ·¯¿ÀÀÚ.
+	//smashEffectíš¨ê³¼, ì•„ì´ìŠ¤ ìºìŠ¤íŠ¸ ë¶ˆëŸ¬ì˜¤ì.
 	//ConstructorHelpers::FObjectFinder<UParticleSystem> tempEffect(TEXT("/Script/Engine.ParticleSystem'/Game/ParagonRampage/FX/Particles/Rampage_v001_IceBlue/FX/P_Rampage_Ice_Enrage_Cast.P_Rampage_Ice_Enrage_Cast'"));
 
-	//smashÈ¿°ú ¾î½º±×¶ó¿îµå ¾îÅÃ ºÒ·¯¿ÀÀÚ.
-	ConstructorHelpers::FObjectFinder<UParticleSystem> tempSmashEffect(TEXT("/ Script / Engine.ParticleSystem'/Game/GroundAttacks/Fx/Earth/P_EarthGroundAttack.P_EarthGroundAttack'"));
+	//smashíš¨ê³¼ ì–´ìŠ¤ê·¸ë¼ìš´ë“œ ì–´íƒ ë¶ˆëŸ¬ì˜¤ì.
+	ConstructorHelpers::FObjectFinder<UParticleSystem> tempSmashEffect(TEXT("/Script/Engine.ParticleSystem'/Game/GroundAttacks/Fx/Earth/P_EarthGroundAttack.P_EarthGroundAttack'"));
 
 	if (tempSmashEffect.Succeeded())
 	{
@@ -72,53 +78,60 @@ void UBossFsmTest::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ÇÃ·¹ÀÌ¾î¸¦ Ã£ÀÚ
-	//UGameplayStatics ÀÎÅ¬·çµå
-	//ATestPlayer ÀÎÅ¬·çµå
-	//ÇÃ·¹ÀÌ¾î¸¦ Ã£ÀÚ.
+	// í”Œë ˆì´ì–´ë¥¼ ì°¾ì
+	//UGameplayStatics ì¸í´ë£¨ë“œ
+	//ATestPlayer ì¸í´ë£¨ë“œ
+	//í”Œë ˆì´ì–´ë¥¼ ì°¾ì.
 	AActor* findActor = UGameplayStatics::GetActorOfClass(GetWorld(), AGunPlayer::StaticClass());
 	target = Cast<AGunPlayer>(findActor);
 	UE_LOG(LogTemp, Warning, TEXT("beginplay find player"));
 
-	//¹è¿­ ¾×ÅÍÀÇ ÁÖ¼Ò°ªÀ» ÀúÀåÇÏ´Â Áö¿ªº¯¼ö
+	//ë°°ì—´ ì•¡í„°ì˜ ì£¼ì†Œê°’ì„ ì €ì¥í•˜ëŠ” ì§€ì—­ë³€ìˆ˜
 	TArray<AActor*> findallPlayer;
-	//°ÔÀÓ¿¡¼­ ¸ğµçÅ¬·¡½º¸¦ Ã£¾Æ¼­, findallPlayer ³ÖÀÚ.
+	//ê²Œì„ì—ì„œ ëª¨ë“ í´ë˜ìŠ¤ë¥¼ ì°¾ì•„ì„œ, findallPlayer ë„£ì.
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGunPlayer::StaticClass(), findallPlayer);
 	//UE_LOG(LogTemp, Warning, TEXT("find player"));
 
-	//ÇÃ·¹ÀÌ¾î¸¦ AActor·Î °¡Á®¿Íµµ µÇÁö¸¸ Gunplayer°¡ °¡Áø º¯¼ö³ª ÇÔ¼ö¸¦ È£ÃâÇÏ±â À§ÇØ¼­´Â Gunplayer ÀÚ·áÇüÀ» ½á¾ßÇÕ´Ï´Ù. ex) ÇÃ·¹ÀÌ¾îÀÇ Ã¼·ÂÀ» °¡Á®¿Ã¶§
+	//í”Œë ˆì´ì–´ë¥¼ AActorë¡œ ê°€ì ¸ì™€ë„ ë˜ì§€ë§Œ Gunplayerê°€ ê°€ì§„ ë³€ìˆ˜ë‚˜ í•¨ìˆ˜ë¥¼ í˜¸ì¶œí•˜ê¸° ìœ„í•´ì„œëŠ” Gunplayer ìë£Œí˜•ì„ ì¨ì•¼í•©ë‹ˆë‹¤. ex) í”Œë ˆì´ì–´ì˜ ì²´ë ¥ì„ ê°€ì ¸ì˜¬ë•Œ
 
-	//Ã£Àº ÇÃ·¹ÀÌ¾îÀÇ ¼ıÀÚ¸¸Å­ ½ÇÇà
+	//ì°¾ì€ í”Œë ˆì´ì–´ì˜ ìˆ«ìë§Œí¼ ì‹¤í–‰
 	
 	for (int32 i = 0; i < findallPlayer.Num(); i++)
 	{
-		//¿ÃÅ¸ÄÏÀº(¸â¹ö)¿¡ Ä³½ºÆÃÇÑ ÇÃ·¹ÀÌ¾î ¹è¿­ ÀÚ·áÇü ³Ö±â
+		//ì˜¬íƒ€ì¼“ì€(ë©¤ë²„)ì— ìºìŠ¤íŒ…í•œ í”Œë ˆì´ì–´ ë°°ì—´ ìë£Œí˜• ë„£ê¸°
 		//allTarget.Add(Cast<AGunPlayer>(findallPlayer[i]));
 
 	}
 	UE_LOG(LogTemp, Warning, TEXT("find player : %d"), findallPlayer.Num());
 
-	// ³ªÀÇ ¾×ÅÍ¸¦ Ã£ÀÚ
-	//ATest_Boss ÀÎÅ¬·çµå
+	// ë‚˜ì˜ ì•¡í„°ë¥¼ ì°¾ì
+	//ATest_Boss ì¸í´ë£¨ë“œ
 	bossActor = Cast<ATest_Boss>(GetOwner());
 	UE_LOG(LogTemp, Warning, TEXT("find Boss"));
 
-	// ³ªÇÑÅ× ¼³Á¤µÇ¾î ÀÖ´Â Anim Class °¡Á®¿ÀÀÚ
-	// ÀÎÅ¬·çµå #include "AnimBossTest.h"
+	// ë‚˜í•œí…Œ ì„¤ì •ë˜ì–´ ìˆëŠ” Anim Class ê°€ì ¸ì˜¤ì
+	// ì¸í´ë£¨ë“œ #include "AnimBossTest.h"
 	USkeletalMeshComponent* mesh = bossActor->GetMesh();
 	UAnimInstance* animInstance = mesh->GetAnimInstance();
 	anim = Cast<UAnimBossTest>(animInstance);
 
-	// ½Ã¾ß°¢À» cos(½Ã¾ß°¢) À¸·Î ÇÏÀÚ
+	// ì‹œì•¼ê°ì„ cos(ì‹œì•¼ê°) ìœ¼ë¡œ í•˜ì
 	float radianViewAngle = FMath::DegreesToRadians(viewAngle * 0.5f);
 	viewAngle = FMath::Cos(radianViewAngle);
 
-	// ³ªÀÇ Ã³À½ À§Ä¡¸¦ ´ã¾ÆµÎÀÚ
+	// ë‚˜ì˜ ì²˜ìŒ ìœ„ì¹˜ë¥¼ ë‹´ì•„ë‘ì
 	originPos = bossActor->GetActorLocation();
 
-	//Ãæµ¹½Ã È£ÃâµÇ´Â ÇÔ¼ö¸¦ µî·Ï
+	//ì¶©ëŒì‹œ í˜¸ì¶œë˜ëŠ” í•¨ìˆ˜ë¥¼ ë“±ë¡
 	bossActor->GetMesh()->OnComponentBeginOverlap.AddDynamic(this, &UBossFsmTest::SkillOverlap);
 
+	//í”Œë ˆì´ì–´ì˜ ì•¡í„° ì»´í¬ë„ŒíŠ¸
+	UActorComponent* findComp = target->FindComponentByClass<UPlayerScoreComp>();
+	target->playerScore = Cast<UPlayerScoreComp>(findComp);
+
+	//ë³´ìŠ¤ ì‚¬ìš´ë“œ ì»´í¬ë„ŒíŠ¸
+	UActorComponent* findSoundComp = bossActor->FindComponentByClass<UBossSound>();
+	bossSound = Cast<UBossSound>(findSoundComp);
 }
 
 
@@ -129,7 +142,7 @@ void UBossFsmTest::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// ¸¸¾à¿¡ plater(target) ÀÌ ¾ø´Ù¸é ÇÔ¼ö¸¦ ³ª°¡ÀÚ
+	// ë§Œì•½ì— plater(target) ì´ ì—†ë‹¤ë©´ í•¨ìˆ˜ë¥¼ ë‚˜ê°€ì
 	if (target == nullptr)
 	{
 		UE_LOG(LogTemp, Warning, TEXT(" bossfsm tick null target"));
@@ -167,57 +180,27 @@ void UBossFsmTest::TickComponent(float DeltaTime, ELevelTick TickType, FActorCom
 
 	}
 
-
-}
-
-void UBossFsmTest::MultiRPC_SetAnimation_Implementation(EEnemyState s, int attackType)
-{
-	// ¾Ö´Ï¸ŞÀÌ¼Ç »óÅÂ °»½Å (µ¿±âÈ­)
-	anim->state = s;
-
-	// °ø°İ ¾Ö´Ï¸ŞÀÌ¼Ç °áÁ¤
-	anim->attackType = (EAttackType)attackType;
-
-	//ÇÇ°İ ¾Ö´Ï¸ŞÀÌ¼Ç °áÁ¤
-	if(s == EEnemyState::DAMAGE)
-	{
-		bossActor->PlayAnimMontage(montage, 1.0f, TEXT("hurt"));
-	}
-	//Á×À½ ¾Ö´Ï¸ŞÀÌ¼Ç °áÁ¤
-	if (s == EEnemyState::DIE)
-	{
-		//bossActor->Chracter
-		bossActor->PlayAnimMontage(montage, 1.0f, TEXT("die"));
-	}
 	
+
 }
 
-//ÇÑ¹ø¸¸ ½ÇÇàÇÒ°ÍÀº ¿©±â¿¡ Ãß°¡ÇÕ´Ï´Ù.
+
+//í•œë²ˆë§Œ ì‹¤í–‰í• ê²ƒì€ ì—¬ê¸°ì— ì¶”ê°€í•©ë‹ˆë‹¤.
 void UBossFsmTest::ChangeState(EEnemyState s)
 {
-	// ¹Ù²î´Â »óÅÂ¸¦ Ãâ·ÂÇÏÀÚ
-	/*UEnum* enumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EBossState"), true);
-	if (enumPtr != nullptr)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("%s -------> %s"),
-			*enumPtr->GetNameStringByIndex((int32)currState),
-			*enumPtr->GetNameStringByIndex((int32)s));
-	}*/
+	// ë°”ë€ŒëŠ” ìƒíƒœë¥¼ ì¶œë ¥í•˜ì
+	UE_LOG(LogTemp, Warning, TEXT("%d --> %d"), (int)(currState), (int)s);
 
-	// ³×ºñ°ÔÀÌ¼Ç µ¿ÀÛ ¸ØÃç
-	//AAIController ÀÎÅ¬·çµå
-	//ai->StopMovement();
-	// ÇöÀç »óÅÂ¸¦ °»½Å
-	//¾Ö´Ï¸ŞÀÌ¼Ç °»½Å, currState = idle
 	currState = s;
 
-	// ¾Ö´Ï¸ŞÀÌ¼Ç »óÅÂ °»½Å (µ¿±âÈ­)
+	// ì• ë‹ˆë©”ì´ì…˜ ìƒíƒœ ê°±ì‹  (ë™ê¸°í™”)
 	anim->state = currState;
 
-	// ÇöÀç ½Ã°£À» ÃÊ±âÈ­
+	// í˜„ì¬ ì‹œê°„ì„ ì´ˆê¸°í™”
 	currTime = 0;
 
 	
+
 	switch (currState)
 	{
 	case EEnemyState::IDLE:
@@ -228,25 +211,30 @@ void UBossFsmTest::ChangeState(EEnemyState s)
 	case EEnemyState::ATTACK:
 	{
 
-		//º¸½º ¹æÇâÀ» ÇÃ·¹ÀÌ¾î ¹æÇâÀ¸·Î µ¹¸³´Ï´Ù.
+		//ë³´ìŠ¤ ë°©í–¥ì„ í”Œë ˆì´ì–´ ë°©í–¥ìœ¼ë¡œ ëŒë¦½ë‹ˆë‹¤.
 		BossViewAngle();
-		// 4°¡ÁöÁß ·£´ı °ø°İÇÒÁö ¼³Á¤
+		// 4ê°€ì§€ì¤‘ ëœë¤ ê³µê²©í• ì§€ ì„¤ì •
+		//randAttackAnim = 1;
 		randAttackAnim = FMath::RandRange(0, 3);
-		//2°¡Áö ¼Ó¼ºÀ» °¡Áø °ø°İ Å¸ÀÔÀº ¿©±â¼­ °áÁ¤
+		//2ê°€ì§€ ì†ì„±ì„ ê°€ì§„ ê³µê²© íƒ€ì…ì€ ì—¬ê¸°ì„œ ê²°ì •
 		randSkill = FMath::RandRange(0, 1);
-		//¾Ö´Ï¸ŞÀÌ¼Ç °áÁ¤
-		anim->attackType = (EAttackType)randAttackAnim;
 
-		//¸ğµç ÇÃ·¹ÀÌ¾î¿¡°Ô.
+
+		//ì• ë‹ˆë©”ì´ì…˜ ê²°ì •
+		//anim->attackType = (EAttackType)randAttackAnim;
+
+		//ëª¨ë“  í”Œë ˆì´ì–´ì—ê²Œ.
 		//MultiRPC_ChangeState(s);
 
 		//PUNCH 0, Charge 1, THROW 2, SMASH 3
-		if (randAttackAnim == 0)
+		//if (1) 
+		if(randAttackAnim == 0)
 		{
 			//isChase = true;
 			isPunch = true;
+			MultiRPC_PunchSkillVoice();
 			//PunchSkill();
-			
+			//UE_LOG(LogTemp, Warning,TEXT("000000"));
 			//isCharge = true;
 			//ChargeSkill();
 			
@@ -254,24 +242,35 @@ void UBossFsmTest::ChangeState(EEnemyState s)
 
 			//SmashSkill();
 
+			//isChaseJumpSmash = true;
+			
+			//isJumpSmash = true;
+			
+			
 			//UE_LOG(LogTemp, Warning, TEXT("state attack no0 punch Skill"));
 		}
 		else if (randAttackAnim == 1)
 		{
 			isCharge = true;
+			MultiRPC_ChargeSkillVoice();
 			//ChargeSkill();
 			//UE_LOG(LogTemp, Warning, TEXT("state attack no1 charge Skill"));
 		}
 		else if (randAttackAnim == 2)
 		{
+			
 			ThorwSkill();
+			MultiRPC_ThorwSkillVoice();
 			//UE_LOG(LogTemp, Warning, TEXT("state attack no2 ThorwSkill"));
 		}
 		else
 		{
+			
 			SmashSkill();
+			MultiRPC_SmashSkillVoice();
 			//UE_LOG(LogTemp, Warning, TEXT("state attack no3 SmashSkill"));
 		}
+	
 	}
 	//UE_LOG(LogTemp, Warning, TEXT("state attack  break"));
 	break;
@@ -279,23 +278,21 @@ void UBossFsmTest::ChangeState(EEnemyState s)
 	switch (currState)
 	{
 	case EEnemyState::DAMAGE:
-	{// 1. ·£´ıÇÑ °ªÀ» »Ì´Â´Ù. (1, 2)
+	{// 1. ëœë¤í•œ ê°’ì„ ë½‘ëŠ”ë‹¤. (1, 2)
 		int32 rand = FMath::RandRange(1, 2);
-		// 2. Damage01, Damage02 ¶õ ¹®ÀÚ¿­À» ¸¸µç´Ù.
+		// 2. Damage01, Damage02 ë€ ë¬¸ìì—´ì„ ë§Œë“ ë‹¤.
 		FString sectionName = FString::Printf(TEXT("Damage0%d"), rand);
-		// 3. Montage ÇÃ·¹ÀÌ
+		// 3. Montage í”Œë ˆì´
 		//myActor->PlayAnimMontage(montage, 1.0f, FName(*sectionName));
 		bossActor->PlayAnimMontage(montage, 1.0f, TEXT("hurt"));
 	}
 	break;
 
 	case EEnemyState::DIE:
-	{// Á×´Â ¾Ö´Ï¸ŞÀÌ¼Ç ÇÃ·¹ÀÌ
-		bossActor->PlayAnimMontage(montage, 1.0f, TEXT("Die"));
-		// Ãæµ¹ Ã³¸® µÇÁö ¾Ê°Ô ÇÏÀÚ	
+	{
+		//ì¶©ëŒ ì²˜ë¦¬ ë˜ì§€ ì•Šê²Œ í•˜ì
 		//UCapsuleComponent
-		bossActor->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		// myActor->Destroy();
+		//bossActor->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 	break;
 
@@ -308,41 +305,78 @@ void UBossFsmTest::ChangeState(EEnemyState s)
 
 	}
 
-	// ¾Ö´Ï¸ŞÀÌ¼Ç µ¿±âÈ­
-	MultiRPC_SetAnimation(currState, randAttackAnim);
+	// ì• ë‹ˆë©”ì´ì…˜ ë™ê¸°í™”
+	MultiRPC_SetAnimation(currState, randAttackAnim, randSkill);
+}
+
+
+void UBossFsmTest::MultiRPC_SetAnimation_Implementation(EEnemyState s, int attackType, int skillType)
+{
+	if(anim != nullptr)
+	{
+		// ì• ë‹ˆë©”ì´ì…˜ ìƒíƒœ ê°±ì‹  (ë™ê¸°í™”)
+		anim->state = s;
+
+		// ê³µê²© ì• ë‹ˆë©”ì´ì…˜ ê²°ì •
+		anim->attackType = (EAttackType)attackType;
+		//UE_LOG(LogTemp, Warning, TEXT("multi setanim : %d"), randAttackAnim);
+	}
+	
+
+	skillType = randSkill;
+
+	//í”¼ê²© ì• ë‹ˆë©”ì´ì…˜ ê²°ì •
+	if (s == EEnemyState::DAMAGE)
+	{
+		bossActor->PlayAnimMontage(montage, 1.0f, TEXT("hurt"));
+	}
+	//ì£½ìŒ ì• ë‹ˆë©”ì´ì…˜ ê²°ì •
+	
+	
+	if (s == EEnemyState::DIE)
+	{
+
+		//bossActor->Chracter
+		bossActor->PlayAnimMontage(montage, 1.0f, TEXT("die"));
+		bossActor->SetActorEnableCollision(ECollisionEnabled::NoCollision);
+		bossActor->DropItem();
+	}
+
 }
 
 void UBossFsmTest::UpdateIdle()
 {
 	//UE_LOG(LogTemp, Warning, TEXT(" update idle"));
 
-	// ¸¸¾à¿¡ ÇÃ·¹ÀÌ¾î¸¦ ÂÑ¾Æ°¥ ¼ö ÀÖ´Ù¸é
+	// ë§Œì•½ì— í”Œë ˆì´ì–´ë¥¼ ì«“ì•„ê°ˆ ìˆ˜ ìˆë‹¤ë©´
 	if (CanTrace())
 	{
 
 		//UE_LOG(LogTemp, Warning, TEXT(" can trace"));
 
-		int32 rand = 0;//FMath::RandRange(0, 1);
-		//anim->attackType = (EAttackType)rand;
+		int32 rand = FMath::RandRange(0, 1);
+		anim->attackType = (EAttackType)rand;
 
 		if (rand == 0)
-		{
-			// »óÅÂ¸¦ Move ·Î ¹Ù²ã¶ó
+		{	
+			
+			// ìƒíƒœë¥¼ Move ë¡œ ë°”ê¿”ë¼
 			ChangeState(EEnemyState::MOVE);
-			UE_LOG(LogTemp, Warning, TEXT(" updateidle change move"));
+			//UE_LOG(LogTemp, Warning, TEXT(" updateidle change move"));
+			
 		}
 		else
 
 		{
 			ChangeState(EEnemyState::ATTACK);
-			UE_LOG(LogTemp, Warning, TEXT(" updateidle change attack"));
+			//UE_LOG(LogTemp, Warning, TEXT(" updateidle change attack"));
 
 		}
 	}
-	// ±×·¸Áö ¾Ê°í idleDelayTime À» Áö³µ´Ù¸é
+	// ê·¸ë ‡ì§€ ì•Šê³  idleDelayTime ì„ ì§€ë‚¬ë‹¤ë©´
 	else if (IsWaitComplete(idleDelayTime))
 	{
-		// »óÅÂ¸¦ PATROL ·Î ¹Ù²ã¶ó
+		// ìƒíƒœë¥¼ PATROL ë¡œ ë°”ê¿”ë¼
 		ChangeState(EEnemyState::IDLE);
 
 		UE_LOG(LogTemp, Warning, TEXT(" no trace "));
@@ -350,34 +384,34 @@ void UBossFsmTest::UpdateIdle()
 	}
 }
 
-// Æ½¿¡¼­ µ¿ÀÛÇÕ´Ï´Ù.
+// í‹±ì—ì„œ ë™ì‘í•©ë‹ˆë‹¤.
 void UBossFsmTest::UpdateMove()
 {
-	//ÇÃ·¹ÀÌ¾îÀÇ À§Ä¡
+	//í”Œë ˆì´ì–´ì˜ ìœ„ì¹˜
 	FVector playerPos = target->GetActorLocation() - bossActor->GetActorLocation();
 	//UE_LOG(LogTemp, Warning, TEXT("UpdateMove %f "), dir.Length());
 
-	// Ã³À½ À§Ä¡¿Í ³ªÀÇ À§Ä¡ÀÇ °Å¸®
+	// ì²˜ìŒ ìœ„ì¹˜ì™€ ë‚˜ì˜ ìœ„ì¹˜ì˜ ê±°ë¦¬
 	float distance = FVector::Distance(originPos, bossActor->GetActorLocation());
 
-	// ¸¸¾à¿¡ distance °¡ moveRange º¸´Ù Ä¿Áö¸é 
+	// ë§Œì•½ì— distance ê°€ moveRange ë³´ë‹¤ ì»¤ì§€ë©´ 
 	if (distance > moveRange)
 	{
-		// Return »óÅÂ·Î ÀüÈ¯
+		// Return ìƒíƒœë¡œ ì „í™˜
 		ChangeState(EEnemyState::RETURN);
 		//UE_LOG(LogTemp, Warning, TEXT(" update move change RETURN "));
 	}
 
 	else
 	{
-		// 2. target À§Ä¡·Î ¿òÁ÷ÀÌÀÚ (Navigation  ±â´ÉÀ» ÅëÇØ¼­)
+		// 2. target ìœ„ì¹˜ë¡œ ì›€ì§ì´ì (Navigation  ê¸°ëŠ¥ì„ í†µí•´ì„œ)
 		//ai->MoveToLocation(target->GetActorLocation());
 
-		//// 2. ±× ¹æÇâÀ¸·Î ¿òÁ÷ÀÌÀÚ. 
+		//// 2. ê·¸ ë°©í–¥ìœ¼ë¡œ ì›€ì§ì´ì. 
 		bossActor->AddMovementInput(playerPos.GetSafeNormal());
 		//UE_LOG(LogTemp, Warning, TEXT("UpdateMove  AddMovementInput"));
 
-		// 3. ÇÃ·¹ÀÌ¾î¿ÍÀÇ °Å¸®°¡ °ø°İ ¹üÀ§º¸´Ù ÀÛÀ¸¸é
+		// 3. í”Œë ˆì´ì–´ì™€ì˜ ê±°ë¦¬ê°€ ê³µê²© ë²”ìœ„ë³´ë‹¤ ì‘ìœ¼ë©´
 		float dist = playerPos.Length();
 		//UE_LOG(LogTemp, Warning, TEXT("dist : %f"), dist);
 
@@ -385,11 +419,11 @@ void UBossFsmTest::UpdateMove()
 		//UE_LOG(LogTemp, Warning, TEXT(" update move time %f"), currTime);
 
 
-		//ÇÃ·¹ÀÌ¾î¿ÍÀÇ °Å¸®°¡ playerReChaseº¸´Ù ÀÛÀ»¶§
+		//í”Œë ˆì´ì–´ì™€ì˜ ê±°ë¦¬ê°€ playerReChaseë³´ë‹¤ ì‘ì„ë•Œ
 		if (dist < playerReChase)
 		{
 
-			//°Å¸®°¡ attackRange ÀûÀ»¶§ °ø°İ
+			//ê±°ë¦¬ê°€ attackRange ì ì„ë•Œ ê³µê²©
 			if (dist < attackRange)
 			{
 
@@ -398,11 +432,11 @@ void UBossFsmTest::UpdateMove()
 				currTime = 0;
 			}
 
-			//2ÃÊ°¡ Áö³ª¸é °ø°İ
+			//2ì´ˆê°€ ì§€ë‚˜ë©´ ê³µê²©
 			else if (currTime > 2)
 			{
 
-				// 4. ÇöÀç »óÅÂ¸¦ ATTACK ·Î ¹Ù²ÙÀÚ
+				// 4. í˜„ì¬ ìƒíƒœë¥¼ ATTACK ë¡œ ë°”ê¾¸ì
 				ChangeState(EEnemyState::ATTACK);
 				//UE_LOG(LogTemp, Warning, TEXT(" upmove change Attack "));
 				currTime = 0;
@@ -415,38 +449,53 @@ void UBossFsmTest::UpdateMove()
 
 }
 
-//Æ½¿¡¼­ °è¼Ó ½ÇÇàÇÒ°Ì´Ï´Ù.
+//í‹±ì—ì„œ ê³„ì† ì‹¤í–‰í• ê²ë‹ˆë‹¤.
 void UBossFsmTest::UpdateAttack()
 {
 	if (isChase)
 	{
-		//ÃßÀû½ºÅ³À» Æ½¸¶´Ù ½ÇÇà
+		//ì¶”ì ìŠ¤í‚¬ì„ í‹±ë§ˆë‹¤ ì‹¤í–‰
 		ChasePlayer();
 	}
 
 	else if (isPunch)
 	{
-		//ÆİÄ¡ ½ºÅ³À» Æ½¸¶´Ù ½ÇÇà
+		//í€ì¹˜ ìŠ¤í‚¬ì„ í‹±ë§ˆë‹¤ ì‹¤í–‰
 		PunchSkill();
+		//UE_LOG(LogTemp, Warning, TEXT("update attack ispunch"));
 	}
 
 	else if (isCharge)
 	{
-		//Â÷Áö½ºÅ³À» Æ½¸¶´Ù ½ÇÇà
+		//ì°¨ì§€ìŠ¤í‚¬ì„ í‹±ë§ˆë‹¤ ì‹¤í–‰
 		ChargeSkill();
 	}
 	else if (isSmash)
 	{
 		DamageDelayToSkill(1);
 	}
-	//1ÃÊ´ë±â ÈÄ ¾îÅÃ µô·¹ÀÌ·Î
+	else if (isJumpSmash)
+	{
+		JumpSmashSkill();
+	}
+	//1ì´ˆëŒ€ê¸° í›„ ì–´íƒ ë”œë ˆì´ë¡œ
+	else if (isChaseJumpSmash)
+	{
+		ChaseJumpSmashSkill();
+	}
 	else
 	{
+		isPunch = false;
+		isCharge = false;
+		
 		currTime += GetWorld()->DeltaTimeSeconds;
-
 
 		if (currTime > 1)
 		{
+			//ë”œë ˆì´ ë³´ì´ìŠ¤
+			MultiRPC_AttackDelayVoice();
+			isPunch = false;
+			isCharge = false;
 			currTime = 0;
 			UE_LOG(LogTemp, Warning, TEXT("UpdateAttack chansge attack delay after 1 second "));
 			ChangeState(EEnemyState::ATTACK_DELAY);
@@ -458,34 +507,39 @@ void UBossFsmTest::UpdateAttack()
 void UBossFsmTest::UpdateAttackDelay()
 {
 
-	// 1. ½Ã°£À» Èå¸£°Ô ÇÑ´Ù.
+	isPunch = false;
+	isCharge = false;
+	// 1. ì‹œê°„ì„ íë¥´ê²Œ í•œë‹¤.
 	currTime += GetWorld()->DeltaTimeSeconds;
-	// 2. ¸¸¾à¿¡ Attack Delay ½Ã°£ÀÌ Áö³ª¸é
+	// 2. ë§Œì•½ì— Attack Delay ì‹œê°„ì´ ì§€ë‚˜ë©´
 	//attackDelayTime = 1
 	if (currTime > attackDelayTime)
+	
 
-		//UE_LOG(LogTemp, Warning, TEXT("update delay"));
+		//UE_LOG(LogTemp, Warning, TEXT("attack delay"));
 
 
 		if (IsWaitComplete(attackDelayTime))
 		{
-			// ÇÃ·¹¾î¿ÍÀÇ °Å¸®
+			// í”Œë ˆì–´ì™€ì˜ ê±°ë¦¬
 			float dist = FVector::Distance(target->GetActorLocation(), bossActor->GetActorLocation());
-			// ±× °Å¸®°¡ °ø°İ¹üÀ§- > ÁøÂ¥ °ø°İ
+			// ê·¸ ê±°ë¦¬ê°€ ê³µê²©ë²”ìœ„- > ì§„ì§œ ê³µê²©
 			if (dist < attackRange)
 			{
-				// 3. °ø°İ »óÅÂ·Î °¡¶ó
+				// 3. ê³µê²© ìƒíƒœë¡œ ê°€ë¼
 				ChangeState(EEnemyState::ATTACK);
 				//UE_LOG(LogTemp, Warning, TEXT(" update attack delay change attak"));
 
 			}
 
-			// ÀÎÁö¹üÀ§ -> ÀÌµ¿ 
+			// ì¸ì§€ë²”ìœ„ -> ì´ë™ 
+			if(target == nullptr) return;
 			else if (CanTrace())
 			{
-				int32 rand = FMath::RandRange(0, 1);
+				//randSkill = 0;
+				randSkill = FMath::RandRange(0, 1);
 
-				if (rand == 0)
+				if (randSkill == 0)
 				{
 					ChangeState(EEnemyState::MOVE);
 					//UE_LOG(LogTemp, Warning, TEXT(" update attack delay change move"));
@@ -497,15 +551,16 @@ void UBossFsmTest::UpdateAttackDelay()
 					//UE_LOG(LogTemp, Warning, TEXT(" update attack delay change Attack"));
 				}
 			}
-			// ±× ¿Ü´Â -> ´ë±â
+			// ê·¸ ì™¸ëŠ” -> ëŒ€ê¸°
 			else
 			{
 				ChangeState(EEnemyState::IDLE);
+				//bossActor->SetActorEnableCollision(ECollisionEnabled::NoCollision);
 				//UE_LOG(LogTemp, Warning, TEXT(" update attack delay change idle"));
 
 			}
 
-			// 4. ÇöÀç½Ã°£ ÃÊ±âÈ­
+			// 4. í˜„ì¬ì‹œê°„ ì´ˆê¸°í™”
 			currTime = 0;
 		}
 	/*else
@@ -519,29 +574,40 @@ void UBossFsmTest::UpdateDamaged(float deltaTime)
 {
 	if (IsWaitComplete(damageDelayTime))
 	{
-		// IDLE »óÅÂ·Î ÀüÈ¯
+		// IDLE ìƒíƒœë¡œ ì „í™˜
 		ChangeState(EEnemyState::IDLE);
 	}
 }
 
 void UBossFsmTest::UpdateDie()
 {
-	if (IsWaitComplete(100))
+	bossActor->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (isDie) return;
+	MultiRPC_DieVoice();
+	bossActor->PlayAnimMontage(montage, 1.0f, TEXT("die"));
+	bossActor->DropItem();
+	//UPlayerScoreComp
+	target->playerScore->AddScore(100);
+	
+	isDie = true;
+	if (IsWaitComplete(1))
 	{
-		bossActor->PlayAnimMontage(montage, 1.0f, TEXT("die"));
+		
+	
 	}
+
 }
 
 void UBossFsmTest::UpdateReturn()
 {
-	// ³» À§Ä¡¿Í Ã³À½ À§Ä¡ÀÇ °Å¸®¸¦ ±¸ÇÑ´Ù.
+	// ë‚´ ìœ„ì¹˜ì™€ ì²˜ìŒ ìœ„ì¹˜ì˜ ê±°ë¦¬ë¥¼ êµ¬í•œë‹¤.
 	float dist = FVector::Distance(originPos, bossActor->GetActorLocation());
 	//UE_LOG(LogTemp, Warning, TEXT("dist : %f"), dist);
 
-	// ±× °Å¸®°¡ 0ÀÌ¸é
+	// ê·¸ ê±°ë¦¬ê°€ 0ì´ë©´
 	if (dist < 50)
 	{
-		// IDLE »óÅÂ·Î ÀüÈ¯
+		// IDLE ìƒíƒœë¡œ ì „í™˜
 		ChangeState(EEnemyState::IDLE);
 	}
 }
@@ -561,35 +627,41 @@ bool UBossFsmTest::IsWaitComplete(float delay)
 
 bool UBossFsmTest::CanTrace()
 {
+	if (target == nullptr) return false;
+	if (allTarget.Num() == 0) return false;
 
+
+	//ë©€í‹°í”Œë ˆì´ë¥¼ í• ë•Œ í”Œë ˆì´ì–´ íƒ€ê²Ÿì˜ ìœ„ì¹˜ë¥¼ êµ¬í•˜ì.
 	MultiPlayTarget();
 	//UE_LOG(LogTemp, Warning, TEXT(" cantarce MultiPlayTarget "));
+	//UE_LOG(LogTemp, Warning, TEXT(" huntStart : %s "), huntStart);
 
-	// 1. ½Ì±ÛÇÃ·¹ÀÌ¾î¿ÍÀÇ °Å¸®¸¦ ±¸ÇÏÀÚ.
+	// 1. ì‹±ê¸€í”Œë ˆì´ì–´ì™€ì˜ ê±°ë¦¬ë¥¼ êµ¬í•˜ì.
 	FVector dir = target->GetActorLocation() - bossActor->GetActorLocation();
 	float dist = dir.Length();
 	//UE_LOG(LogTemp, Warning, TEXT(" trace dir %f"), dir.Length());
 
-		// 2. ¸¸¾à¿¡ °Å¸®°¡ ÀÎÁö¹üÀ§ º¸´Ù ÀÛÀ¸¸é
-	if (dist < traceRange || bossActor->currbossHP<1000)
+	//ì‚¬ëƒ¥ì‹œì‘ì´ ì°¸ì´ë©´
+	if (huntStart)
 	{
+		//íŠ¸ë£¨ë¥¼ ë°˜í™˜, ë¬´ì¡°ê±´ ì¶”ì 
+		return true;
+	}
 
-		//»ç³É½ÃÀÛÀ» ÂüÀ¸·Î
-		huntStart = true;
-		//»ç³É½ÃÀÛÀÌ ÂüÀÌ¸é
-		if (huntStart)
-		{
-			return true;
-		}
 
-		// ³ªÀÇ ¾Õ¹æÇâ°ú ÇÃ·¹¾î¸¦ ÇâÇÏ´Â ¹æÇâÀ» ³»Àû
+	// 2. ë§Œì•½ì— ê±°ë¦¬ê°€ ì¸ì§€ë²”ìœ„ 2500 ë³´ë‹¤ ì‘ê³ 
+	// ë³´ìŠ¤ì²´ë ¥ì´ 0ë³´ë‹¤ í¬ë‹¤ë©´
+	if (dist < traceRange && bossActor->currbossHP>=0)
+	{
+		
+		// ë‚˜ì˜ ì•ë°©í–¥ê³¼ í”Œë ˆì–´ë¥¼ í–¥í•˜ëŠ” ë°©í–¥ì„ ë‚´ì 
 		float dot = FVector::DotProduct(dir.GetSafeNormal(), bossActor->GetActorForwardVector());
 
 		FVector bossStarLocation = GetOwner()->GetActorLocation();
 		FColor DebugColor;
 
 		//#include "DrawDebugHelpers.h"
-		DrawDebugLine(GetWorld(), bossStarLocation, bossStarLocation + dir, DebugColor.Red, false, 5.0f, 0, 1.0f);
+		//DrawDebugLine(GetWorld(), bossStarLocation, bossStarLocation + dir, DebugColor.Red, false, 5.0f, 0, 1.0f);
 
 
 		if (dot > viewAngle)
@@ -597,9 +669,12 @@ bool UBossFsmTest::CanTrace()
 
 			UE_LOG(LogTemp, Warning, TEXT(" dot > view "));
 
-			// ÇÃ·¹ÀÌ¾î¸¦ ÇâÇÏ´Â ¹æÇâ¿¡ Àå¾Ö¹°ÀÌ ÀÖ´ÂÁö ÆÇ´Ü (LineTrace)
+			// í”Œë ˆì´ì–´ë¥¼ í–¥í•˜ëŠ” ë°©í–¥ì— ì¥ì• ë¬¼ì´ ìˆëŠ”ì§€ íŒë‹¨ (LineTrace)
 			FVector start = bossActor->GetActorLocation();
 			FVector end = target->GetActorLocation();
+			//FVector end = start + bossActor->GetActorForwardVector() * 3000;
+			
+			
 			FHitResult hitInfo;
 			FCollisionQueryParams param;
 			param.AddIgnoredActor(bossActor);
@@ -608,23 +683,29 @@ bool UBossFsmTest::CanTrace()
 
 			if (hit)
 			{
-				if (hitInfo.GetActor()->GetName().Contains(TEXT("Player")) == false)
+			if (hitInfo.GetActor()->GetName().Contains(TEXT("Player")) == true)
 				{
 
 					UE_LOG(LogTemp, Warning, TEXT(" crace huntStart = true "));
-					return false;
+					//ì‚¬ëƒ¥ì‹œì‘ì„ ì°¸ìœ¼ë¡œ ì´í›„ë¶€í„° ê³„ì† ì¶”ì í•©ë‹ˆë‹¤.
+					
+					MultiRPC_HuntStartVoice();
+					huntStart = true;
+					return true;
+
+					
 				}
 			}
 
-			//target = °¡Àå°¡±î¿î Player¸¦ ³ÖÀÚ.
-			return true;
+			//target = ê°€ì¥ê°€ê¹Œìš´ Playerë¥¼ ë„£ì.
+			return false;
 		}
 
-		// ³»ÀûÇÑ °ªÀ» acos ÇÏÀÚ
+		// ë‚´ì í•œ ê°’ì„ acos í•˜ì
 		float radianAngle = FMath::Acos(dot);
-		// degree °ªÀ¸·Î º¯°æÇÏÀÚ
+		// degree ê°’ìœ¼ë¡œ ë³€ê²½í•˜ì
 		float degreeAngle = FMath::RadiansToDegrees(radianAngle);
-		// ¸¸¾à¿¡ ÇÃ·¹ÀÌ¾î°¡ ½Ã¾à°¢(60)¿¡ µé¾î¿Ô´Ù¸é (degreeAngle <= 60 / 2) 
+		// ë§Œì•½ì— í”Œë ˆì´ì–´ê°€ ì‹œì•½ê°(60)ì— ë“¤ì–´ì™”ë‹¤ë©´ (degreeAngle <= 60 / 2) 
 		if (degreeAngle <= 180 * 0.5f)
 		{
 			return true;
@@ -632,59 +713,76 @@ bool UBossFsmTest::CanTrace()
 	}
 
 	return false;
-	//return true;
-	//HuntStart();
-	//return false;
-	//
-
+	
+	
 
 }
 
+//ë©€í‹°í”Œë ˆì´ë¥¼ í• ë•Œ í”Œë ˆì´ì–´ íƒ€ê²Ÿì˜ ìœ„ì¹˜ë¥¼ êµ¬í•˜ì.
 void UBossFsmTest::MultiPlayTarget()
 {
-	//°Å¸®¸¦ ºñ±³ÇÏ±â À§ÇÑ ÃÖ¼Ò°ªÀ» ºñ±³ÇÒ ÃÖ´ë°ª
-	float targetChase = 100000;
-	//ÇÃ·¹ÀÌ¾î ÀÎµ¦½º¸¦ ÀúÀåÇÒ º¯¼ö
-	int32 targetplayerIndex = 0;
-	int32 otherplayerIndex = 0;
+	
 
-	//¸ÖÆ¼ÇÃ·¹ÀÌ¾îÀÇ °Å¸®¸¦ ±¸ÇÏ´Â for¹®, ±¸ÇÑ°ªÀ» target¿¡ ³ÖÀÚ.
+	//ê±°ë¦¬ë¥¼ ë¹„êµí•˜ê¸° ìœ„í•œ ìµœì†Œê°’ì„ ë¹„êµí•  ìµœëŒ€ê°’
+	float targetMaxDistance = 100000;
+	//í”Œë ˆì´ì–´ ì¸ë±ìŠ¤ë¥¼ ì €ì¥í•  ë³€ìˆ˜
+	targetplayerIndex = 0;
+	otherplayerIndex = 0;
+
+	
+	//ë©€í‹°í”Œë ˆì´ì–´ì˜ ê±°ë¦¬ë¥¼ êµ¬í•˜ëŠ” forë¬¸, êµ¬í•œê°’ì„ targetì— ë„£ì.
 	for (int32 i = 0; i < allTarget.Num(); i++)
 	{
-		//º¸½º¿Í ¿ÃÅ¸°ÙÀÇ °Å¸®¸¦ ±¸ÇÏÀÚ.
+		
+		//ë³´ìŠ¤ì™€ ì˜¬íƒ€ê²Ÿì˜ ê±°ë¦¬ë¥¼ êµ¬í•˜ì.
 		float targetDistance = FVector::Distance(allTarget[i]->GetActorLocation(), bossActor->GetActorLocation());
 		//UE_LOG(LogTemp, Warning, TEXT(" min : %f"), targetDistance);
 
-		//ÃßÀû °Å¸®°¡ targetDistance Å©´Ù¸é
-		if (targetDistance < targetChase)
-		{
-			//ÇöÀç °Å¸®¸¦ °»½Å
-			targetChase = targetDistance;
-			//index ¼ıÀÚ¸¦ ÇÃ·¹ÀÌ¾î º§·ù¿¡ ³ÖÀÚ.
-			targetplayerIndex = i;
+		//í˜„ì¬ê±°ë¦¬ < ìµœëŒ€ê±°ë¦¬
+		if (targetDistance < targetMaxDistance)
+		{	
 
-		}
-		else
-		{
-			otherplayerIndex = i;
+			
+			//ì´ì „ê±°ë¦¬< í˜„ì¬ê±°ë¦¬
+			if (targetDistance < currTargetDistance)
+			{
+				//í˜„ì¬ê±°ë¦¬ê°€ ì´ì „ê±°ë¦¬ë³´ë‹¤ ì‘ìœ¼ë©´ íƒ€ê²Ÿì— ë„£ì.
+				targetplayerIndex = i;
+				//ì´ì „ê±°ë¦¬ ê°±ì‹ 
+				currTargetDistance = targetDistance;
+			}
+			else if (currTargetDistance < targetDistance)
+			{
+				otherplayerIndex = i;
+				currTargetDistance = targetDistance;
+			}
 		}
 
+		//for ì¢…ë£Œ
+	}
+	
+	//íƒ€ê²Ÿ ê°’ì— ê°€ì¥ê°€ê¹Œìš´ í”Œë ˆì–´ë¥¼ ì¸ë±ìŠ¤ë¥¼ ë„£ì.
+	target = allTarget[targetplayerIndex];
+	//UE_LOG(LogTemp, Warning, TEXT(" targetidx : %d, otheridx : %d "), targetplayerIndex, otherplayerIndex);
+	//UE_LOG(LogTemp, Warning, TEXT("target hp : %f"), target->statment.healthPoint);
+
+	if (target->statment.healthPoint <= 0)
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("target die"));
+		allTarget.RemoveAt(targetplayerIndex);
+		//target = allTarget[otherplayerIndex];
+		
 	}
 
-	//Å¸°Ù °ª¿¡ °¡Àå°¡±î¿î ÇÃ·¹¾î¸¦ ÀÎµ¦½º¸¦ ³ÖÀÚ.
-	target = allTarget[targetplayerIndex];
 
-	/*if (target->statment.healthPoint >= 0)
-	{
-		target = allTarget[otherplayerIndex];
-	}*/
 
-	//ÇÃ·¹ÀÌ¾î Ã¼·ÂÀ» Ãâ·ÂÇÕ´Ï´Ù.
-	//	UE_LOG(LogTemp, Warning, TEXT(" target hp: %f"), target->statment.healthPoint);
+	
+}
 
-	//UE_LOG(LogTemp, Warning, TEXT(" minplayer : %d"), targetplayerIndex);
-
-	//UE_LOG(LogTemp, Warning, TEXT(" otherplayer : %d"), otherplayerIndex);
+void UBossFsmTest::MultiRPC_HuntStartVoice_Implementation()
+{
+	bossSound->playbossBattleStartSound();
+	bossSound->playbossBattleStartMusic();
 }
 
 //bool UBossFsmTest::HuntStart()
@@ -697,7 +795,7 @@ void UBossFsmTest::BossViewAngle()
 	//MultiRPC_BossViewAngle();
 	FVector playerPos = target->GetActorLocation();
 	FVector bossPos = bossActor->GetActorLocation();
-	//ÇÃ·¹ÀÌ¾î ¹æÇâÀ» ±¸ÇÏÀÚ.
+	//í”Œë ˆì´ì–´ ë°©í–¥ì„ êµ¬í•˜ì.
 	FVector dir = playerPos - bossPos;
 
 	bossActor->SetActorRotation(dir.Rotation());
@@ -705,15 +803,15 @@ void UBossFsmTest::BossViewAngle()
 
 void UBossFsmTest::ChasePlayer()
 {
-	//ÇÃ·¹ÀÌ¾îÀÇ À§Ä¡
+	//í”Œë ˆì´ì–´ì˜ ìœ„ì¹˜
 	FVector playerPos = target->GetActorLocation() - bossActor->GetActorLocation();
-	//ÇÃ·¹ÀÌ¾îÀÇ ¹æÇâ°ª
+	//í”Œë ˆì´ì–´ì˜ ë°©í–¥ê°’
 	float dist = playerPos.Length();
 
 	currTime += GetWorld()->GetDeltaSeconds();
 	if (currTime < 2)
 	{
-		//0ÀÌ¸é °è¼Ó ÀÌµ¿
+		//0ì´ë©´ ê³„ì† ì´ë™
 		if (randSkill == 0)
 		{
 			bossActor->AddMovementInput(playerPos.GetSafeNormal());
@@ -726,7 +824,7 @@ void UBossFsmTest::ChasePlayer()
 			}
 		}
 
-		//1ÀÌ¸é °ø°İ
+		//1ì´ë©´ ê³µê²©
 		else
 		{
 			ChangeState(EEnemyState::ATTACK);
@@ -748,26 +846,29 @@ void UBossFsmTest::ChangeAttackType()
 
 void UBossFsmTest::PunchSkill()
 {
+	//UE_LOG(LogTemp, Warning, TEXT("punchskill"));
 	FVector playerPos = target->GetActorLocation();
 	FVector AttackDirstnace = playerPos - bossActor->GetActorLocation();
 	float damageZone = AttackDirstnace.Length();
 
-	//UE_LOG(LogTemp, Warning, TEXT(" fsm punchskill "));
 	currTime += GetWorld()->DeltaTimeSeconds;
 
-	if (currTime > 0.36)
+	if (currTime > 1.35)
 	{
+		
+		//UE_LOG(LogTemp, Warning, TEXT(" boss fsm punchskill "));
+
 		//UE_LOG(LogTemp, Warning, TEXT(" fsm punchskill 0.5 time "));
 
 		MultiRPC_PunchSkillEffect();
 
-		//µ¥¹ÌÁöÁ¸<punchDagmageZone
+		//ë°ë¯¸ì§€ì¡´<punchDagmageZone
 		if (damageZone < punchDagmageZone)
 		{
 			//UE_LOG(LogTemp, Warning, TEXT(" fsm punchskill damagezone "));
 
 			PlayerDamageProcess(50);
-			MultiRPC_PlayerDamageProcess(50);
+			//MultiRPC_PlayerDamageProcess(50);
 			//ChangeState(EEnemyState::MOVE);
 		}
 		currTime = 0;
@@ -775,22 +876,34 @@ void UBossFsmTest::PunchSkill()
 	}
 }
 
-void UBossFsmTest::MultiRPC_PunchSkillEffect_Implementation()
+void UBossFsmTest::MultiRPC_PunchSkillVoice_Implementation()
 {
+	//UBossSound
+	bossSound->PlaybossPunchVoice();
+}
+
+void UBossFsmTest::MultiRPC_PunchSkillEffect_Implementation()
+{	
+	
 	//ATest_Boss* bossActor = Cast<ATest_Boss>(GetOwner());
 
 	USceneComponent* meshChild = bossActor->GetMesh()->GetChildComponent(0);
 	UBoxComponent* rightHandBox = Cast<UBoxComponent>(meshChild);
 
 	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), punchEffect, rightHandBox->GetComponentLocation(), rightHandBox->GetComponentRotation(), FVector(4));
+	bossSound->PlaybossPunchSound();
+	
+
+
+
 }
 
 void UBossFsmTest::ChargeSkill()
 {
-
-	//ÇÃ·¹ÀÌ¾î À§Ä¡ ±¸ÇÏÀÚ.
+	
+	//í”Œë ˆì´ì–´ ìœ„ì¹˜ êµ¬í•˜ì.
 	FVector playerPos = target->GetActorLocation();
-	//ÇÃ·¹ÀÌ¾î À§Ä¡ ¹æÇâ°ªÀ» ÀúÀåÇÏÀÚ.
+	//í”Œë ˆì´ì–´ ìœ„ì¹˜ ë°©í–¥ê°’ì„ ì €ì¥í•˜ì.
 	FVector bossPos = playerPos - bossActor->GetActorLocation();
 	bossPos.Normalize();
 
@@ -808,23 +921,23 @@ void UBossFsmTest::ChargeSkill()
 	if (currTime > 2)
 	{
 		isCharge = false;
-		UE_LOG(LogTemp, Warning, TEXT("charge false"));
+		UE_LOG(LogTemp, Warning, TEXT("charge end"));
 	}
-
-	//¿¹Á¦ÄÚµå
-	//ÇÃ·¹ÀÌ¾î À§Ä¡ ±¸ÇÏ±â
+	
+	//ì˜ˆì œì½”ë“œ
+	//í”Œë ˆì´ì–´ ìœ„ì¹˜ êµ¬í•˜ê¸°
 	//FVector playerPos = target->GetActorLocation();
-	//º¸½º À§Ä¡ ±¸ÇÏ±â
+	//ë³´ìŠ¤ ìœ„ì¹˜ êµ¬í•˜ê¸°
 	//FVector bossPos = myActor->GetActorLocation();
-	//ÇÃ·¹ÀÌ¾î¿¡¼­ º¸½ºÀ§Ä¡¸¦ ¹æÇâÀ» »©ÀÚ
+	//í”Œë ˆì´ì–´ì—ì„œ ë³´ìŠ¤ìœ„ì¹˜ë¥¼ ë°©í–¥ì„ ë¹¼ì
 	//FVector p0 = playerPos - bossPos;
-	//¹æÇâ°ªÀ» ³ë¸»¶óÀÌÁîÇÏÀÚ.
+	//ë°©í–¥ê°’ì„ ë…¸ë§ë¼ì´ì¦ˆí•˜ì.
 	//p0.Normalize();
-	//ÇÃ·¹ÀÌ¾î ¹æÇâ, ¼Óµµ, ½Ã°£
+	//í”Œë ˆì´ì–´ ë°©í–¥, ì†ë„, ì‹œê°„
 	//FVector p1 = p0 * chargeSpeed * GetWorld()->GetDeltaSeconds();
-	//º¸½ºÀÇ À§Ä¡¿¡ ¹æÇâ,¼Óµµ,½Ã°£À» ´õÇÏÀÚ.
+	//ë³´ìŠ¤ì˜ ìœ„ì¹˜ì— ë°©í–¥,ì†ë„,ì‹œê°„ì„ ë”í•˜ì.
 	//FVector p2 = bossPos + p1;
-	//³»À§Ä¡¸¦ p2·Î ÀÌµ¿½ÃÅ°ÀÚ.
+	//ë‚´ìœ„ì¹˜ë¥¼ p2ë¡œ ì´ë™ì‹œí‚¤ì.
 	//myActor->SetActorLocation(p2);
 	//myActor->AddMovementInput(p0);
 
@@ -835,28 +948,29 @@ void UBossFsmTest::ChargeSkill()
 
 void UBossFsmTest::ChargeForward()
 {
-	// º¸½ºÀÇ Æ÷¿öµå º¤ÅÍ ¹æÇâÀ¸·Î ¿òÁ÷ÀÌÀÚ.
+	// ë³´ìŠ¤ì˜ í¬ì›Œë“œ ë²¡í„° ë°©í–¥ìœ¼ë¡œ ì›€ì§ì´ì.
 
-	//ÇÃ·¹ÀÌ¾î À§Ä¡ ±¸ÇÏÀÚ.
-	FVector playerPos = target->GetActorLocation();
-	//ÇÃ·¹ÀÌ¾î À§Ä¡ ¹æÇâ°ªÀ» ÀúÀåÇÏÀÚ.
-	FVector bossPos = playerPos - bossActor->GetActorLocation();
-	bossPos.Normalize();
+	//í”Œë ˆì´ì–´ ìœ„ì¹˜ êµ¬í•˜ì.
+	//FVector playerPos = target->GetActorLocation();
+	//í”Œë ˆì´ì–´ ìœ„ì¹˜ ë°©í–¥ê°’ì„ ì €ì¥í•˜ì.
+	//FVector bossPos = playerPos - bossActor->GetActorLocation();
+	//ë³´ìŠ¤ë°©í–¥ì„ ë…¸ë§ë¼ì´ì¦ˆ
+	//bossPos.Normalize();
 
 
-	//ÇÃ·¹ÀÌ¾î À§Ä¡¿¡¼­ º¸½ºÀ§Ä¡¸¦ ¹æÇâÀ» »©ÀÚ
+	//í”Œë ˆì´ì–´ ìœ„ì¹˜ì—ì„œ ë³´ìŠ¤ìœ„ì¹˜ë¥¼ ë°©í–¥ì„ ë¹¼ì
 	FVector p0 = bossActor->GetActorForwardVector();
-	//¹æÇâ°ªÀ» ³ë¸»¶óÀÌÁîÇÏÀÚ.
+	//ë°©í–¥ê°’ì„ ë…¸ë§ë¼ì´ì¦ˆí•˜ì.
 	p0.Normalize();
-	//º¸½ºÀÇ Æ÷¿öµå º¤ÅÍ¿¡¼­ ÇÃ·¹ÀÌ¾î ¹æÇâÀ¸·Î µ¹ÀÌ ¿òÁ÷ÀÌ°Ô ÇÏÀÚ, ¼Óµµ, ½Ã°£
+	//ë³´ìŠ¤ì˜ í¬ì›Œë“œ ë²¡í„°ì—ì„œ í”Œë ˆì´ì–´ ë°©í–¥ìœ¼ë¡œ ëŒì´ ì›€ì§ì´ê²Œ í•˜ì, ì†ë„, ì‹œê°„
 	FVector p1 = p0 * chargeForwardSpeed * GetWorld()->GetDeltaSeconds();
-	//³» À§Ä¡¿¡ p1¸¦ ´õÇÏÀÚ.
+	//ë‚´ ìœ„ì¹˜ì— p1ë¥¼ ë”í•˜ì.
 	FVector p2 = bossActor->GetActorLocation() + p1;
-	//³»À§Ä¡¸¦ p2·Î ÀÌµ¿½ÃÅ°ÀÚ.
+	//ë‚´ìœ„ì¹˜ë¥¼ p2ë¡œ ì´ë™ì‹œí‚¤ì.
 	bossActor->SetActorLocation(p2);
 
 	//DrawDebugLine(GetWorld(), p0, p2, FColor::Red);
-	//UE_LOG(LogTemp, Warning, TEXT(" charge skill forward"));
+
 
 	//SkillOverlap(UPrimitiveComponent * abc, AActor * OtherActor, UPrimitiveComponent * OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult);
 
@@ -864,21 +978,25 @@ void UBossFsmTest::ChargeForward()
 
 	//bossActor->GetCapsuleComponent()->OnComponentBeginOverlap.AddDynamic(this, &UBossFsmTest::SkillOverlap);
 
-	ChargeSkillLinetrace();
-
+	//UE_LOG(LogTemp, Warning, TEXT(" charge skill forward"));
+	//chargeAttackDelay = 0.2;
+	if(currTime > chargeAttackDelay)
+	{
+		ChargeSkillLinetrace();
+	}
 
 }
 
 void UBossFsmTest::ChargeChase()
 {
 
-	//ÇÃ·¹ÀÌ¾î À§Ä¡ ±¸ÇÏÀÚ.
+	//í”Œë ˆì´ì–´ ìœ„ì¹˜ êµ¬í•˜ì.
 	FVector playerPos = target->GetActorLocation();
-	//ÇÃ·¹ÀÌ¾î À§Ä¡ ¹æÇâ°ªÀ» ÀúÀåÇÏÀÚ.
+	//í”Œë ˆì´ì–´ ìœ„ì¹˜ ë°©í–¥ê°’ì„ ì €ì¥í•˜ì.
 	FVector bossPos = playerPos - bossActor->GetActorLocation();
 	bossPos.Normalize();
 
-	// ÇÃ·¹ÀÌ¾î¸¦ ÃßÀûÇÏÀÚ.
+	// í”Œë ˆì´ì–´ë¥¼ ì¶”ì í•˜ì.
 
 	FVector p0 = bossActor->GetActorLocation();
 	FVector vt = bossPos * chargeChaseSpeed * GetWorld()->DeltaTimeSeconds;
@@ -887,18 +1005,27 @@ void UBossFsmTest::ChargeChase()
 	bossActor->SetActorRotation(bossPos.Rotation());
 	//DrawDebugLine(GetWorld(), bossPos, playerPos, FColor::Red);
 	//UE_LOG(LogTemp, Warning, TEXT(" charge skill chage"));
+	
+	//chargeAttackDelay= 0.2;
+	if (currTime > chargeAttackDelay)
+	{
+		ChargeSkillLinetrace();
+	}
+}
 
-	ChargeSkillLinetrace();
-
+void UBossFsmTest::MultiRPC_ChargeSkillVoice_Implementation()
+{
+	bossSound->playbossChargeVoice();
 }
 
 void UBossFsmTest::ThorwSkill()
 {
-	// ÃÑ¾Ë°øÀå(BP_Bullet) ¿¡¼­ ÃÑ¾ËÀ» ÇÏ³ª »ı¼ºÇÑ´Ù.
+	// ì´ì•Œê³µì¥(BP_Bullet) ì—ì„œ ì´ì•Œì„ í•˜ë‚˜ ìƒì„±í•œë‹¤.
 	AStoneActor* spawnStone = GetWorld()->SpawnActor<AStoneActor>(bossActor->stoneFactory);
-	// »ı¼ºµÈ ÃÑ¾ËÀ» ³ªÀÇ À§Ä¡¿¡ ³õ´Â´Ù.
+	// ìƒì„±ëœ ì´ì•Œì„ ë‚˜ì˜ ìœ„ì¹˜ì— ë†“ëŠ”ë‹¤.
 	spawnStone->SetActorLocation(bossActor->GetActorLocation());
 	spawnStone->isThorw = true;
+	//ìŠ¤í°ì˜ íƒ€ê²Ÿì„ í˜„ì¬íƒ€ê²Ÿìœ¼ë¡œ ê°±ì‹ 
 	spawnStone->target = target;
 
 	//	spawnStone->meshComp->OnComponentBeginOverlap.AddDynamic(this, &UBossFsmTest::SkillOverlap);
@@ -911,22 +1038,135 @@ void UBossFsmTest::ThorwSkill()
 
 }
 
+void UBossFsmTest::MultiRPC_ThorwSkillVoice_Implementation()
+{
+	bossSound->playbossStoneThrowVoice();
+}
+
 void UBossFsmTest::SmashSkill()
 {
-	//1ÃÊÈÄ¿¡ ´ë¹ÌÁö ¹üÀ§³»¿¡ ÀÖÀ¸¸é ÇÇÇØ¸¦ Áİ´Ï´Ù.
+	//1ì´ˆí›„ì— ëŒ€ë¯¸ì§€ ë²”ìœ„ë‚´ì— ìˆìœ¼ë©´ í”¼í•´ë¥¼ ì¤ë‹ˆë‹¤.
 	isSmash = true;
-	MultiRPC_SmashSkillEffect();
+	//MultiRPC_SmashSkillEffect();
 	
+}
+
+void UBossFsmTest::MultiRPC_SmashSkillVoice_Implementation()
+{
+	bossSound->playbossSmashVoice();
+}
+
+void UBossFsmTest::JumpSmashSkill()
+{
+	//UCharacterMovementComponent
+	//í¬ë˜ë¹„í‹° ìŠ¤ì¼€ì¼ì„ 0ìœ¼ë¡œ
+	//bossActor->GetCharacterMovement()->GravityScale = 0.0f;
+	currTime += GetWorld()->DeltaTimeSeconds;
+	
+	if (currTime < 2)
+	{
+		bossActor->GetCharacterMovement()->DoJump(true);
+		//isJumpSmash = true;
+		UE_LOG(LogTemp, Warning, TEXT(" JumpSmashSkill"));
+		//ì œìë¦¬ ì í”„ì™€ ì´ë™
+		FVector p0 = bossActor->GetActorUpVector();
+		//ë°©í–¥ê°’ì„ ë…¸ë§ë¼ì´ì¦ˆí•˜ì.
+		p0.Normalize();
+		//ë³´ìŠ¤ì˜ í¬ì›Œë“œ ë²¡í„°ì—ì„œ í”Œë ˆì´ì–´ ë°©í–¥ìœ¼ë¡œ ëŒì´ ì›€ì§ì´ê²Œ í•˜ì, ì†ë„, ì‹œê°„
+		FVector p1 = p0 * chargeForwardSpeed * GetWorld()->GetDeltaSeconds();
+		//í˜„ì¬ ë³´ìŠ¤ìœ„ì¹˜ì— p1ë¥¼ ë”í•˜ì.
+		FVector p2 = bossActor->GetActorLocation() + p1;
+		//ë°©í–¥ê°’ì„ ë…¸ë§ë¼ì´ì¦ˆí•˜ì.
+		//p2.Normalize();
+		//ë‚´ìœ„ì¹˜ë¥¼ p2ë¡œ ì´ë™ì‹œí‚¤ì.
+		bossActor->SetActorLocation(p2);
+		//ë°”ë‹¥ì— ë„ì°©í›„ íš¨ê³¼ ì¶œë ¥, ë²”ìœ„ ë‚´ë¼ë©´ í”¼ê²©
+		UE_LOG(LogTemp, Warning, TEXT(" JumpSmashSkill : %f "), p2.Length());
+	}
+	
+	 if (currTime > 5)
+	 {
+		 isJumpSmash = false;
+		currTime=0;
+		
+	 }
+	 
+	//ì˜ˆì œì½”ë“œ
+	//í”Œë ˆì´ì–´ ìœ„ì¹˜ êµ¬í•˜ê¸°
+	//FVector playerPos = target->GetActorLocation();
+	//ë³´ìŠ¤ ìœ„ì¹˜ êµ¬í•˜ê¸°
+	//FVector bossPos = myActor->GetActorLocation();
+	//í”Œë ˆì´ì–´ì—ì„œ ë³´ìŠ¤ìœ„ì¹˜ë¥¼ ë°©í–¥ì„ ë¹¼ì
+	//FVector p0 = playerPos - bossPos;
+	//ë°©í–¥ê°’ì„ ë…¸ë§ë¼ì´ì¦ˆí•˜ì.
+	//p0.Normalize();
+	//í”Œë ˆì´ì–´ ë°©í–¥, ì†ë„, ì‹œê°„
+	//FVector p1 = p0 * chargeSpeed * GetWorld()->GetDeltaSeconds();
+	//ë³´ìŠ¤ì˜ ìœ„ì¹˜ì— ë°©í–¥,ì†ë„,ì‹œê°„ì„ ë”í•˜ì.
+	//FVector p2 = bossPos + p1;
+	//ë‚´ìœ„ì¹˜ë¥¼ p2ë¡œ ì´ë™ì‹œí‚¤ì.
+	//myActor->SetActorLocation(p2);
+	//myActor->AddMovementInput(p0);
+
+	//DrawDebugLine(GetWorld(), bossPos, playerPos , FColor::Red);
+
+}
+
+void UBossFsmTest::ChaseJumpSmashSkill()
+{
+	//ì‹œê°„ì„ ëˆ„ì í•˜ì
+	currTime += GetWorld()->DeltaTimeSeconds;
+	
+	//1ì´ˆí›„ì— í”Œë ˆì´ì–´ ë°©í–¥ìœ¼ë¡œ ì í”„
+	if (currTime > 1)
+	{
+	bossActor->Jump();
+	
+	//í”Œë ˆì´ì–´ì˜ ìœ„ì¹˜ë¥¼ êµ¬í•˜ì.
+	FVector playerPos = target->GetActorLocation();
+	//ë³´ìŠ¤ ìœ„ì¹˜ë¥¼ êµ¬í•˜ì.
+	FVector bossPos = bossActor->GetActorLocation();
+	//ë‚´ ìœ„ì¹˜ë¥¼ ë¹¼ì.
+	FVector dir = playerPos - bossActor->GetActorLocation();
+	//ë°©í–¥ê°’ì„ ë…¸ë§ë¼ì´ì¦ˆ
+	dir.Normalize();
+
+	//ë³´ìŠ¤ì˜ í¬ì›Œë“œë°±í„°ë¥¼ êµ¬í•œë‹¤.
+	FVector p0 = bossActor->GetActorForwardVector();
+	p0.Normalize();
+	//ë°©í–¥,ì†ë„,ì‹œê°„
+	FVector vt = p0 * 600 * GetWorld()->GetDeltaSeconds();
+	//ë‚´ìœ„ì¹˜ì—,ë°©í•­,ì†ë„,ì‹œê°„ì„ ë³´ìŠ¤ì˜ í¬ì›Œë“œì— ë”í•˜ì.
+	FVector p = bossPos + vt;
+	bossActor->SetActorLocation(p);
+	
+	
+	}
+	
+	if (currTime > 2.5)
+	{
+		//bossActor->Falling();
+		bossActor->StopJumping();
+	}
+
+	if(currTime > 4)
+	{	
+		MultiRPC_SmashSkillEffect();
+		currTime = 0;
+		isChaseJumpSmash = false;
+	}
+
+
 }
 
 void UBossFsmTest::MultiRPC_SmashSkillEffect_Implementation()
 {
 	USphereComponent* sr = bossActor->smashRange;
 
-	FVector smashLocation = FVector(0, 0, -70);
-	//¹üÀ§°ø°İ È¿°ú Ãâ·Â
+	FVector smashLocation = FVector(0, 0, -100);
+	//ë²”ìœ„ê³µê²© íš¨ê³¼ ì¶œë ¥
 	//UParticleSystemComponent
-	// myActor->smashRange->GetRelativeScale3D() ¶Ç´Â FVector(10)
+	// myActor->smashRange->GetRelativeScale3D() ë˜ëŠ” FVector(10)
 	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), smashEffect, bossActor->GetActorLocation() + smashLocation, bossActor->GetActorRotation(), FVector(2)); //bossActor->smashRange->GetRelativeScale3D());
 
 	//UE_LOG(LogTemp, Warning, TEXT("smash skill false"));
@@ -950,41 +1190,65 @@ bool UBossFsmTest::skillDelay(float delay)
 
 void UBossFsmTest::DamageDelayToSkill(float delay)
 {
-	MultiRPC_DamageDelayToSkill();
-}
-
-void UBossFsmTest::MultiRPC_DamageDelayToSkill_Implementation()
-{
 	currTime += GetWorld()->DeltaTimeSeconds;
 	//UE_LOG(LogTemp, Warning, TEXT("smash skill currTime: %f"), currTime);
 
-	//attackDelayTime = 1
+	//attackDelayTime = 1.5
 	if (currTime > smashDamageDelay)
 	{
-
+		//ëª©ì†Œë¦¬ ë™ê¸°í™”
+		MultiRPC_DamageDelayToSkill();
+		//í”Œë ˆì´ì–´ ìœ„ì¹˜
 		FVector playerPos = target->GetActorLocation();
 		FVector AttackDirstnace = playerPos - bossActor->GetActorLocation();
 		float damageZone = AttackDirstnace.Length();
 		//UE_LOG(LogTemp, Warning, TEXT("smash skill"));
 
-		//°Å¸®°¡ < smashDamageZone ÀÛÀ»¶§
-		if (damageZone < smashDamageZone)
+		//ì´í™íŠ¸íš¨ê³¼ ë©€í‹°Rpc
+		MultiRPC_SmashSkillEffect();
+		
+		
+		for (int32 i = 0; i < allTarget.Num(); i++)
 		{
-			PlayerDamageProcess(100);
+				
+			//ë³´ìŠ¤ì™€ ì˜¬íƒ€ê²Ÿì˜ ê±°ë¦¬ë¥¼ êµ¬í•˜ì.
+			float targetDistance = FVector::Distance(allTarget[i]->GetActorLocation(), bossActor->GetActorLocation());
+
+			 
+			if (targetDistance < smashDamageZone)
+			{
+				target = allTarget[i];
+				//targetDistance < smashDamageZone ì‘ì„ë•Œ
+				PlayerDamageProcess(100);
+			
+			}
+			
+		
 		}
 		currTime = 0;
 		isSmash = false;
+
 	}
+
+	//MultiRPC_DamageDelayToSkill();
 }
+
+void UBossFsmTest::MultiRPC_DamageDelayToSkill_Implementation()
+{
+	//ìŠ¤ë§¤ì‰¬ ì†Œë¦¬
+	bossSound->playbossSmashSound();
+
+}
+
 
 void UBossFsmTest::ChargeSkillLinetrace()
 {
 	//UE_LOG(LogTemp, Warning, TEXT("boss fsm SkillLinetrace "));
-	//Ãæµ¹°á°ú º¯¼ö
+	//ì¶©ëŒê²°ê³¼ ë³€ìˆ˜
 	FHitResult hitInfo;
-	//½ÃÀÛÁ¡
+	//ì‹œì‘ì 
 	FVector startPos = bossActor->GetActorLocation();
-	//³¡Á¡
+	//ëì 
 	FVector endPos = bossActor->GetActorLocation() + bossActor->GetActorForwardVector() * chargeDamageZone;
 	FCollisionQueryParams params;
 	params.AddIgnoredActor(bossActor);
@@ -995,32 +1259,43 @@ void UBossFsmTest::ChargeSkillLinetrace()
 
 	if (isHit)
 	{
-		// ¸¸¾à¿¡ ¸ÂÀº Player ¶ó¸é
+		// ë§Œì•½ì— ë§ì€ Player ë¼ë©´
 		AActor* player = Cast<AGunPlayer>(hitInfo.GetActor());
 		if (player)
 		{
-			// µ¥¹ÌÁö ÁÖÀÚ
+			// ë°ë¯¸ì§€ ì£¼ì
 			PlayerDamageProcess(50);
-			ChangeState(EEnemyState::ATTACK_DELAY);
-		}
-		else
-		{
-
-			ChangeState(EEnemyState::ATTACK_DELAY);
-		}
-
+			
+		}		
+		currTime = 0;
+		isCharge = false;
+		ChangeState(EEnemyState::ATTACK_DELAY);
 	}
 
-	DrawDebugLine(GetWorld(), startPos, startPos + endPos, FColor::Red);
+	//DrawDebugLine(GetWorld(), startPos, startPos + endPos, FColor::Red);
 
 
 }
 
 void UBossFsmTest::MultiRPC_ChargeSkillEffect_Implementation()
 {
+	if(!bossActor) return;
 	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), chargeEffect, bossActor->GetActorLocation(), bossActor->GetActorRotation(), FVector(3));
+	//ì°¨ì§€ì‚¬ìš´ë“œë¥¼ ë©€í‹°ë¡œ
+	bossSound->playbossChargeSound();
 }
 
+
+void UBossFsmTest::MultiRPC_AttackDelayVoice_Implementation()
+{
+	bossSound->playbossDelayVoice();
+}
+
+void UBossFsmTest::MultiRPC_DieVoice_Implementation()
+{
+	bossSound->playbossDieVoice();
+	bossActor->PlayAnimMontage(montage, 1.0f, TEXT("die"));
+}
 
 void UBossFsmTest::SkillOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -1045,15 +1320,16 @@ void UBossFsmTest::SkillOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UP
 
 void UBossFsmTest::PlayerDamageProcess(float damage)
 {
-	//ÇÇÇØ·®¿¡¼­ ¹æ¾îµµ º¸Á¤
+	//í”¼í•´ëŸ‰ì—ì„œ ë°©ì–´ë„ ë³´ì •
 	damage -= target->statment.defancePoint;
 
 	if (damage < 5)
 	{
 		damage = 5;
 	}
-	//ÇÃ·¹ÀÌ¾î Çï½º °¡Á®¿Í¼­ µ¥¹ÌÁö ³Ö¾îÁÖ±â
+	//í”Œë ˆì´ì–´ í—¬ìŠ¤ ê°€ì ¸ì™€ì„œ ë°ë¯¸ì§€ ë„£ì–´ì£¼ê¸°
 	target->statment.healthPoint -= damage;
+	target->bIsAttacked = true;
 }
 
 
@@ -1067,5 +1343,24 @@ void UBossFsmTest::MultiRPC_PlayerDamageProcess_Implementation(float damage)
 		damage = 5;		
 	}
 	target->statment.healthPoint -= damage;
+	target->bIsAttacked = true;
+}
+
+void UBossFsmTest::TestTarget()
+{
+	//íƒ€ê²Ÿ ì²´ë ¥ì´ 0ì´ë©´
+	if (target->statment.healthPoint <= 0)
+	{
+		//ëª¨ë“ íƒ€ê²Ÿì—ì„œ ì¸ë±ìŠ¤ ë²ˆí˜¸ë¥¼ ì‚­ì œ
+		allTarget.RemoveAt(targetplayerIndex);
+
+		//íƒ€ê²Ÿì´ nullì´ ì•„ë‹ˆë©´
+		if (target != nullptr)
+		{
+			//íƒ€ê²Ÿì€ ë‹¤ë¥¸ idx
+			target = allTarget[otherplayerIndex];
+			//UE_LOG(LogTemp, Warning, TEXT(" other idx : %d"), otherplayerIndex);
+		}
+	}
 }
 

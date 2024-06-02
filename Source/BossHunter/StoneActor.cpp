@@ -9,7 +9,8 @@
 #include "Test_Boss.h"
 #include <Kismet/GameplayStatics.h>
 #include <Particles/ParticleSystemComponent.h>
-#include "BossFsmTest.h"
+#include "Boss/BossFsmTest.h"
+#include "BossSound.h"
 
 // Sets default values
 AStoneActor::AStoneActor()
@@ -56,9 +57,6 @@ void AStoneActor::BeginPlay()
 
 	//target = Cast<AGunPlayer>(findPlayer);
 
-
-
-
 	//게임에서 보스를 찾아라.
 	AActor* findBoss = UGameplayStatics::GetActorOfClass(GetWorld(), ATest_Boss::StaticClass());
 	bossActor = Cast<ATest_Boss>(findBoss);
@@ -66,6 +64,11 @@ void AStoneActor::BeginPlay()
 	//매쉬를 안보이게 하자.
 	meshComp->SetActive(false);
 	//UE_LOG(LogTemp, Warning, TEXT("stoneactor beginplay mesh false "));
+	
+	//보스 사운드 컴포넌트
+	UActorComponent* findSoundComp = bossActor->FindComponentByClass<UBossSound>();
+	bossSound = Cast<UBossSound>(findSoundComp);
+
 }
 
 // Called every frame
@@ -76,6 +79,7 @@ void AStoneActor::Tick(float DeltaTime)
 	if (isThorw == true)
 	{
 		StoneMove();
+		
 	}
 
 }
@@ -85,6 +89,8 @@ void AStoneActor::StoneSpawn()
 	// 총알 생성
 	/*AStoneActor* stoneBullet = GetWorld()->SpawnActor<AStoneActor>(bossActor->stoneFactory, bossActor->GetActorLocation(), FRotator::ZeroRotator);*/
 	GetWorld()->SpawnActor<AStoneActor>(bossActor->stoneFactory, bossActor->GetActorLocation(), FRotator::ZeroRotator);
+	//UBossSound
+	
 }
 
 void AStoneActor::StoneFire()
@@ -98,6 +104,10 @@ void AStoneActor::StoneFire()
 
 void AStoneActor::StoneMove()
 {
+	if (this != nullptr)
+	{
+		MultiRPC_StoneSound();
+	}
 	//UStaticMeshComponent
 	meshComp->SetActive(true);
 	meshComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -116,6 +126,7 @@ void AStoneActor::StoneMove()
 	dir = playerPos - GetActorLocation();
 	dir.Normalize();
 	int32 randStone = bossActor->fsm->randSkill;
+	FRotator moveRotator = FRotator(1);
 
 	if (randStone == 0)
 	{
@@ -126,10 +137,16 @@ void AStoneActor::StoneMove()
 		FVector p = p0 + vt;
 		SetActorLocation(p);
 
+		
+		FRotator r0 = GetActorRotation();
+		FRotator r1 = GetActorRotation() + FRotator(moveRotator) ;
+		FRotator r2= r0+ r1;
+		SetActorRotation(r2);
+
 		//로그를 찍자.
 		//UE_LOG(LogTemp, Warning, TEXT("stone actor StoneFire chase"));
 		//디버그 라인 그리기
-		DrawDebugLine(GetWorld(), bossPos, playerPos, FColor::Red);
+		//DrawDebugLine(GetWorld(), bossPos, playerPos, FColor::Red);
 		ThrowSkillLinetrace();
 
 	}
@@ -148,15 +165,22 @@ void AStoneActor::StoneMove()
 		//내위치를 p2로 이동시키자.
 		SetActorLocation(p2);
 
+		
+		FRotator r0 = GetActorRotation();
+		FRotator r1 = GetActorRotation() + FRotator(moveRotator);
+		FRotator r2 = r0 + r1;
+		SetActorRotation(r2);
+
+
 		//출력하기
 		//UE_LOG(LogTemp, Warning, TEXT("stone actor StoneFire foward"));
 
 		//디버그 라인 그리기
-		DrawDebugLine(GetWorld(), bossPos, playerPos, FColor::Red);
+		//DrawDebugLine(GetWorld(), bossPos, playerPos, FColor::Red);
 		ThrowSkillLinetrace();
 
 	}
-
+	
 	//시간누적
 	currTime += GetWorld()->DeltaTimeSeconds;
 	//2초지나면 액터 파괴
@@ -178,6 +202,7 @@ void AStoneActor::StoneMove()
 void AStoneActor::MultiRPC_ShowStoneEffect_Implementation()
 {
 	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), exploEffect, GetActorLocation(), GetActorRotation());
+
 }
 
 
@@ -205,6 +230,7 @@ void AStoneActor::SetAcitve(bool isActive)
 
 void AStoneActor::ThrowSkillLinetrace()
 {
+	
 	//ServerRPC_ThrowSkillLinetrace();
 	//AActor* findActor = UGameplayStatics::GetActorOfClass(GetWorld(), AGunPlayer::StaticClass());
 
@@ -246,11 +272,18 @@ void AStoneActor::ThrowSkillLinetrace()
 
 		}
 
-		DrawDebugLine(GetWorld(), startPos, startPos + endPos, FColor::Red);
+		//DrawDebugLine(GetWorld(), startPos, startPos + endPos, FColor::Red);
+		
 	}
 }
 
-	void AStoneActor::OnOverlap(UPrimitiveComponent * abc, AActor * OtherActor, UPrimitiveComponent * OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
+void AStoneActor::MultiRPC_StoneSound_Implementation()
+{
+	if(bossSound == nullptr)return;
+	bossSound->playbossStoneThrowSound();
+}
+
+void AStoneActor::OnOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 	{
 
 		if (OtherActor->GetName().Contains(TEXT("player")))

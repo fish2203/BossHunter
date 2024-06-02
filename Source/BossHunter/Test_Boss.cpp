@@ -2,10 +2,10 @@
 
 
 #include "Test_Boss.h"
-#include "BossFsmTest.h"
+#include "Boss/BossFsmTest.h"
 #include "TestPlayer.h"
 #include "Camera/CameraComponent.h"
-#include "BossHPBarTest.h"
+#include "Boss/BossHPBarTest.h"
 #include <Components/WidgetComponent.h>
 #include <Components/ProgressBar.h>
 #include <GameFramework/CharacterMovementComponent.h>
@@ -16,6 +16,9 @@
 #include "StoneActor.h"
 #include <Kismet/GameplayStatics.h>
 #include <Components/BoxComponent.h>
+#include "BossDropItem.h"
+#include "BossWidgetComponent.h"
+
 
 
 ATest_Boss::ATest_Boss()
@@ -23,28 +26,8 @@ ATest_Boss::ATest_Boss()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	//애니메이션 블루프린트를 세팅하자. fsm 초기화 할때마다 비활성화 됨.
-	ConstructorHelpers::FClassFinder<UAnimInstance>tempTestBossAnim(TEXT("/Script/Engine.AnimBlueprint'/Game/BulePrint/Cheezebee/ABP_TestBoss.ABP_TestBoss_C'"));
-	if (tempTestBossAnim.Succeeded())
-	{
-		GetMesh()->SetAnimClass(tempTestBossAnim.Class);
-	}
-	
-	//보스 스케일을 2로 설정하자.
-	GetMesh()->SetWorldScale3D(FVector(4));
-	//태그에 보스를 추가하자. 플레이어가 보스를 찾을때 태그로 찾음.
-	Tags.Add(TEXT("boss"));
-	//righthandBOx
-	//<Components / BoxComponent.h>
-	righthandBox = CreateDefaultSubobject<UBoxComponent>(TEXT("RightPunchBox"));
-	//소켓이름을 받아오자
-	FName rightHandSoketName = FName(TEXT("rightHand03"));
-	//컴포넌트의 매쉬의 소켓이름에 붙이자
-	righthandBox -> AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, rightHandSoketName);
-	
-
 	// Skeletal Mesh 읽어오자
-	ConstructorHelpers::FObjectFinder<USkeletalMesh> tempMesh(TEXT("/Script/Engine.SkeletalMesh'/Game/BulePrint/Cheezebee/Rampage.Rampage'"));
+	ConstructorHelpers::FObjectFinder<USkeletalMesh> tempMesh(TEXT("/Script/Engine.SkeletalMesh'/Game/ParagonRampage/Characters/Heroes/Rampage/Meshes/Rampage.Rampage'"));
 	if (tempMesh.Succeeded())
 	{
 		// Mesh 에 Skeletal Mesh 셋팅
@@ -53,10 +36,23 @@ ATest_Boss::ATest_Boss()
 
 	// 메쉬의 위치/회전 값을 설정
 	GetMesh()->SetRelativeLocationAndRotation(FVector(0, 0, -88), FRotator(0, 270, 0));
+	//보스 스케일을 2로 설정하자.
+	GetMesh()->SetWorldScale3D(FVector(2.5));
 
+	//애니메이션 블루프린트를 세팅하자. fsm 초기화 할때마다 비활성화 됨.
+	ConstructorHelpers::FClassFinder<UAnimInstance>tempTestBossAnim(TEXT("/Script/Engine.AnimBlueprint'/Game/BulePrint/Cheezebee/ABP_TestBoss.ABP_TestBoss_C'"));
+	if (tempTestBossAnim.Succeeded())
+	{
+		GetMesh()->SetAnimClass(tempTestBossAnim.Class);
+	}
+	
+	//태그에 보스를 추가하자. 플레이어가 보스를 찾을때 태그로 찾음.
+	Tags.Add(TEXT("boss"));
+	
 	// FSM 액터 컴포넌트 추가
 	//UBossFsmTest 인클루드
 	fsm = CreateDefaultSubobject<UBossFsmTest>(TEXT("Boss FSM"));
+	bossSoundComp = CreateDefaultSubobject<UBossSound>(TEXT("Boss Sound Comp"));
 
 	// Widget 컴포넌트 추가
 	//UWidgetComponent 인클루드
@@ -91,9 +87,9 @@ ATest_Boss::ATest_Boss()
 	smashRange->SetupAttachment(RootComponent);
 	smashRange->SetWorldScale3D(FVector(10));
 	smashRange->SetWorldLocation(FVector(0,0,-70));
+	//SetActorLocation(FVector(1600, 19000, 25800));
 
 	FVector bossPos = GetActorLocation();
-
 
 	//총알 공장을 가져오자.
 	ConstructorHelpers::FClassFinder<AStoneActor> tempFactory(TEXT("/Script/Engine.Blueprint'/Game/BulePrint/Cheezebee/BP_StoneActor.BP_StoneActor_C'"));
@@ -102,21 +98,41 @@ ATest_Boss::ATest_Boss()
 		stoneFactory = tempFactory.Class;
 	}
 
-}
-
-void ATest_Boss::BeginPlay()
-{
-	//오버라이드 한 함수에 이걸 안하면 틱이 동작하지 않음
-	Super::BeginPlay();
+	//<Components / BoxComponent.h>
+	//보스의 오른손에 펀치 콜리전을 만들자.
+	righthandBox = CreateDefaultSubobject<UBoxComponent>(TEXT("RightPunchBox"));
+	//righthandBox -> SetupAttachment(GetMesh());
+	//오른손 펀치 콜리전 이름
+	FName rightHandSoketName = FName(TEXT("rightHand03"));
+	righthandBox->SetupAttachment(GetMesh(), rightHandSoketName);
 	//위치를 0벡터로 고정
 	righthandBox->SetRelativeLocation(FVector(0));
 	//박스크기조정
 	righthandBox->SetBoxExtent(FVector(20));
 
 
+	dropItemPos = CreateDefaultSubobject<UBoxComponent>(TEXT("Drop Item Pos"));
+	dropItemPos -> SetupAttachment(RootComponent);
+	dropItemPos -> SetRelativeLocation(FVector(0,0,200));
+
+	//UBossWidgetComponent
+	//보스위젯 컴포넌트 추가
+	bossWidget = CreateDefaultSubobject <UBossWidgetComponent> (TEXT(" Boss widget "));
+
+
+	//SnapToTargetNotIncludingScale, rightHandSoketName);
+
+}
+
+void ATest_Boss::BeginPlay()
+{
+	//오버라이드 한 함수에 이걸 안하면 틱이 동작하지 않음
+	Super::BeginPlay();	
 	
 	// 현재 HP 를 maxHP 로 하자
 	currbossHP = maxbossHP;
+
+
 	
 	//출력하자.
 	//UE_LOG(LogTemp, Warning, TEXT(" beginplay boss hp"));
@@ -157,6 +173,20 @@ void ATest_Boss::Tick(float DeltaTime)
 			GetCharacterMovement()->MaxWalkSpeed = 550;
 		}
 	}
+
+	if (fsm->isJumpSmash)
+
+	{
+		fsm->JumpSmashSkill();
+		
+	}
+
+	if(fsm->isChaseJumpSmash)
+	{
+		fsm->ChaseJumpSmashSkill();
+	}
+
+
 
 
 	//UE_LOG(LogTemp, Warning, TEXT(" tick "));
@@ -231,5 +261,30 @@ void ATest_Boss::DamageProcess(float damage)
 void ATest_Boss::AttackTarget()
 {
 	//fsm->target->DamageProcess(50);
+
+}
+
+void ATest_Boss::DropItem()
+{
+	
+	if (isDropItem == true) return;
+	
+	//보상을 스폰한다.
+	GetWorld()->SpawnActor<ABossDropItem>(this->dropItemPos->GetComponentLocation(), FRotator::ZeroRotator);
+	
+	//bossDropItem->clearChest->SetVisibility(true);
+	isDropItem = true;
+	UE_LOG(LogTemp, Warning, TEXT("Drop Item"));
+
+}
+
+void ATest_Boss::ReSpawnBoss()
+{
+	currbossHP = 4000;
+	fsm->ChangeState(EEnemyState::DIE);
+}
+
+void ATest_Boss::DieBoss()
+{
 
 }

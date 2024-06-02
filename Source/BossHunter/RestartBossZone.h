@@ -16,6 +16,7 @@ class BOSSHUNTER_API URestartBossZone : public UUserWidget
 
 public:
 	virtual void NativeConstruct() override;
+
 //전역변수
 public:
 	//다시시작버튼

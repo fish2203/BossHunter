@@ -73,7 +73,12 @@ void USessionWidget::OnValueChanged(float Value)
 {
 	// player count 텍스트 갱신
 	//#include <Components/TextBlock.h>
-	text_PlayerCount->SetText(FText::AsNumber(Value));
+	
+	//float 값을 int로 변경
+	int32 intValue = FMath::RoundToInt32(Value);
+
+	//참가인원 표시를 int로 표현
+	text_PlayerCount->SetText(FText::AsNumber(intValue));
 }
 
 void USessionWidget::OnClickCreateSession()

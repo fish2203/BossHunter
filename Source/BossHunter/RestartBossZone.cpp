@@ -15,10 +15,13 @@ void URestartBossZone::NativeConstruct()
 }
 
 void URestartBossZone::OnClickRestartBossZone()
-{	//#include <Kismet/GameplayStatics.h>
+{	
+	
+	//#include <Kismet/GameplayStatics.h>
 	AGameModeBase* findgm = UGameplayStatics::GetGameMode(GetWorld());
 	bhGameMode = Cast<ABossHunterGameMode>(findgm);
-	bhGameMode->URLTravel();
+	if(bhGameMode != nullptr)
+		bhGameMode->URLTravel();
 }
 
 void URestartBossZone::OnClickCancel()

@@ -28,7 +28,8 @@ enum class EAttackType : uint8
 	PUNCH,
 	Charge,
 	THROW,
-	SMASH
+	SMASH,
+	JUMPSMASH
 	//RAGE
 
 };
@@ -82,9 +83,12 @@ public:
 	UPROPERTY(EditAnywhere)
 	class UAnimMontage* montage;
 
+	UPROPERTY()
+	class UBossSound* bossSound;
+
 	// 쫓아 갈 수 있는 범위 (인지 범위)
 	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
-	float traceRange = 1500;
+	float traceRange = 2500;
 	// 공격 할 수 있는 범위 (공격 범위)
 	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
 	float attackRange = 400;
@@ -107,7 +111,7 @@ public:
 	
 	//광역 공격의 딜레이
 	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
-	float smashDamageDelay = 0.3;
+	float smashDamageDelay = 1.5;
 	//광역 공격의 범위
 	UPROPERTY(EditAnywhere, Category = "MySettings|BossBattleOption")
 	float smashDamageZone = 1000;
@@ -131,6 +135,7 @@ public:
 	// IDLE 상태 대기 시간
 	UPROPERTY(EditAnywhere)
 	float idleDelayTime = 2;
+	float chargeAttackDelay = 0.3;
 
 	// AI Controller
 	UPROPERTY(EditAnywhere)
@@ -143,7 +148,7 @@ public:
 	class UParticleSystem* chargeEffect;
 	UPROPERTY()
 	class UParticleSystem* throwEffect;
-	UPROPERTY()
+	UPROPERTY(EditAnywhere)
 	class UParticleSystem* smashEffect;
 
 	//전투시작
@@ -165,14 +170,20 @@ public:
 	bool isCharge = false; 
 	bool isThrow = false;
 	bool isSmash = false;
+	bool isJumpSmash = false;
+	bool isChaseJumpSmash = false;
+	float currTargetDistance = 0;
+	int32 targetplayerIndex = 0;
+	int32 otherplayerIndex = 0;
 
 public:
-	// 애니메이션 동기화
-	UFUNCTION(NetMulticast, Reliable)
-	void MultiRPC_SetAnimation(EEnemyState s, int attackType);
+	
 	// 상태가 바뀔때 한번 실행 되는 함수
 	void ChangeState(EEnemyState s);
-	
+	// 애니메이션 동기화
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_SetAnimation(EEnemyState s, int attackType, int skillType);
+
 	// 대기
 	void UpdateIdle();
 	// 이동
@@ -196,7 +207,8 @@ public:
 	bool CanTrace();
 	void MultiPlayTarget();
 	//bool HuntStart();
-	
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_HuntStartVoice();
 
 	//플레이어 쪽을 바라보자.
 	void BossViewAngle();
@@ -209,6 +221,8 @@ public:
 	//펀치스킬
 	void PunchSkill();
 	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_PunchSkillVoice();
+	UFUNCTION(NetMulticast, Reliable)
 	void MultiRPC_PunchSkillEffect();
 	
 
@@ -218,16 +232,29 @@ public:
 	void ChargeForward();
 	//차지 추적
 	void ChargeChase();
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_ChargeSkillVoice();
+
+
 	//돌던지기 스킬
 	void ThorwSkill();
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_ThorwSkillVoice();
+	
 	//범위스킬
 	UFUNCTION()
 	void SmashSkill();
 	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_SmashSkillVoice();
+	UFUNCTION(NetMulticast, Reliable)
 	void MultiRPC_SmashSkillEffect();
 	
-
-
+	//점프범위스킬
+	UFUNCTION()
+	void JumpSmashSkill();
+	UFUNCTION()
+	void ChaseJumpSmashSkill();
+	
 	//스킬 딜레이
 	bool skillDelay(float delay);
 	//스킬 딜레이
@@ -239,6 +266,14 @@ public:
 	void ChargeSkillLinetrace();
 	UFUNCTION(NetMulticast, Reliable)
 	void MultiRPC_ChargeSkillEffect();
+
+	//딜레이 목소리
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_AttackDelayVoice();
+	//다이 목소리
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_DieVoice();
+
 	
 	//오버렙 함수
 	//딜리게이트 = 함수담는변수 , UFUNCTION()을 써줘야함.
@@ -251,4 +286,8 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MultiRPC_PlayerDamageProcess(float damage);
 
+
+	bool isDie;
+
+	void TestTarget();
 };

@@ -48,6 +48,9 @@ public:
 	UPROPERTY()
 	class UParticleSystem* exploEffect;
 
+	UPROPERTY()
+	class UBossSound* bossSound;
+
 public:
 	bool isThorw = false;
 	bool isstoneHit = false;
@@ -70,7 +73,10 @@ public:
 
 	//값을 못찾으면 헤더 함수가 지워졌는지 확인해보자.
 	void ThrowSkillLinetrace();
-	
+	UFUNCTION(NetMulticast, Reliable)
+	void MultiRPC_StoneSound();
+
+
 	//Delegate 에 등록되는 함수는 UFUNCTION 을 꼭 써주자!
 	UFUNCTION()
 	void OnOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);

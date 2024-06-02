@@ -39,6 +39,8 @@ public:
 	UTexture2D* image;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 price;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsActiveItem;
 };
 
 UCLASS()
@@ -48,6 +50,16 @@ class BOSSHUNTER_API ABossRoomGameStateBase : public AGameStateBase
 	
 public:
 	ABossRoomGameStateBase();
+	static ABossRoomGameStateBase* Get();
+
+	static ABossRoomGameStateBase* singleton;
+
 	UPROPERTY()
 	class UDataTable* itemDataTable;
+
+	UPROPERTY()
+	int32 gold = 500;
+
+	UPROPERTY()
+	int32 playerCount;
 };

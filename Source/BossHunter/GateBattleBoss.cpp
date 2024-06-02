@@ -8,6 +8,8 @@
 #include <Kismet/GameplayStatics.h>
 #include "NetGameInstance.h"
 #include "MoveBossZoneWidget.h"
+#include "RestartBossZone.h"
+#include "BossRoomGameStateBase.h"
 
 // Sets default values
 AGateBattleBoss::AGateBattleBoss()
@@ -23,11 +25,11 @@ AGateBattleBoss::AGateBattleBoss()
 	meshComp->SetupAttachment(RootComponent);
 
 	//#include <Components/StaticMeshComponent.h>
-	/*ConstructorHelpers::FObjectFinder<UStaticMeshComponent>tempMesh(TEXT("/Script/Engine.StaticMesh'/Game/EnvironmentPack1/Meshes/EnvironmentPack_1/SM_DungeonBaseDoorFrame.SM_DungeonBaseDoorFrame'"));
+	ConstructorHelpers::FObjectFinder<UStaticMesh>tempMesh(TEXT("/Script/Engine.StaticMesh'/Game/EnvironmentPack1/Meshes/EnvironmentPack_1/SM_DungeonBaseDoorFrame.SM_DungeonBaseDoorFrame'"));
 	if (tempMesh.Succeeded())
 	{
-
-	}*/
+		meshComp->SetStaticMesh(tempMesh.Object);
+	}
 }
 
 // Called when the game starts or when spawned
@@ -40,13 +42,25 @@ void AGateBattleBoss::BeginPlay()
 	boxComp->OnComponentBeginOverlap.AddDynamic(this, &AGateBattleBoss::OnOverlap);
 
 	bool visibility = true;
+	//로비->보스존으로 이동하는 위젯
 	movewidgetPointer = CreateWidget<UMoveBossZoneWidget>(GetWorld(), moveWidgetPackage);
-	movewidgetPointer->AddToViewport();
+	movewidgetPointer->AddToViewport(1);
 	//movewidgetPointer->SetVisibility(ESlateVisibility::Visible);
 	movewidgetPointer->SetVisibility(ESlateVisibility::Hidden);
 
 	/*sessionInterface->GetResolvedConnectString(SessionName, url);
 	UE_LOG(LogTemp, Warning, TEXT("Join session URL : %s"), *url);*/
+
+	//보스존에서 재시작하는 위젯
+	restartBossZone = CreateWidget<URestartBossZone>(GetWorld(), restartbosszonePackage, FName("restart"));
+	restartBossZone->AddToViewport(1);
+	//restartBossZone->SetVisibility(ESlateVisibility::Visible);
+	restartBossZone->SetVisibility(ESlateVisibility::Hidden);
+
+
+
+
+
 	
 }
 
@@ -54,25 +68,32 @@ void AGateBattleBoss::BeginPlay()
 void AGateBattleBoss::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	gamestate = ABossRoomGameStateBase::Get();
+	TArray<AActor*> countArray;
+	//ABossHunterCharacter* player = Cast<ABossHunterCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
+	UGameplayStatics::GetAllActorsOfClass(this, AGunPlayer::StaticClass(), countArray);
+	gamestate->playerCount = countArray.Num();
 }
 
 void AGateBattleBoss::OnOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	//UE_LOG(LogTemp, Warning, TEXT(" gatebattleboss overlap fail"));
 	if (OtherActor->HasAuthority() == false) return;
+	//위젯 보이게하자.
 	movewidgetPointer->SetVisibility(ESlateVisibility::Visible);
 	
+	//UE_LOG(LogTemp, Warning, TEXT(" gatebattleboss overlap "));
 	
 	/*
-	URLTravel();*/
-	//if (OtherActor->GetName().Contains(TEXT("player")))
-	//{
-		//gi->EnterOtherMap();
+	URLTravel();
+	if (OtherActor->GetName().Contains(TEXT("player")))
+	{
+		gi->EnterOtherMap();
 		
-		//UGameplayStatics::OpenLevel(GetWorld(), TEXT("BossZone"));
-		//MultiRPC_URLTravel();
-	//}
-
+		UGameplayStatics::OpenLevel(GetWorld(), TEXT("BossZone"));
+		MultiRPC_URLTravel();
+	}
+	*/
 }
 
 void AGateBattleBoss::URLTravel()
@@ -85,7 +106,9 @@ void AGateBattleBoss::URLTravel()
 
 void AGateBattleBoss::ServerRPC_URLTravel_Implementation()
 {
-	FString URL = TEXT("/Game/BulePrint/Cheezebee/Map/BossHunter/BossZone?listen");
+	
+	//FString URL = TEXT("/Game/BulePrint/Cheezebee/Map/BossHunter/BossZone?listen");
+	FString URL = TEXT("/Game/BulePrint/JINA/Map/LoadingMap?listen");
 	GetWorld()->ServerTravel(URL, ETravelType::TRAVEL_Absolute);
 
 	//MultiRPC_URLTravel();
@@ -106,6 +129,11 @@ void AGateBattleBoss::MultiRPC_URLTravel_Implementation()
 {
 	if (HasAuthority() == true) return;
 
+}
+
+void AGateBattleBoss::viewRestartWidget()
+{
+	restartBossZone->SetVisibility(ESlateVisibility::Visible);
 }
 
 //FString URL = TEXT("");

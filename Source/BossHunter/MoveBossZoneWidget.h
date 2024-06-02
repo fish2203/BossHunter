@@ -22,6 +22,14 @@ public:
 	class UButton* Btn_MoveBossZone;
 	UPROPERTY(meta = (BindWidget))
 	class UButton* Btn_Cancel;
+	UPROPERTY(meta = (BindWidget))
+	class USpinBox* InputGold;
+
+	class ABossRoomGameStateBase* gamestate;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class ULoadingWidget> LoadingWidgetFactory;
+
 
 public:
 	UPROPERTY()

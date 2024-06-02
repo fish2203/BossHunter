@@ -11,17 +11,25 @@ struct Fstat
 {
 	GENERATED_BODY()
 public:
+	UPROPERTY()
 	float attackPoint;
+	UPROPERTY()
 	float defancePoint;
+	UPROPERTY()
 	float attackSpeedPoint;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float moveSpeedPoint;
 	//curr hp
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float healthPoint;
+	UPROPERTY()
 	float manaPoint;
+	UPROPERTY()
 	float coolTimePoint;
 	//full
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float fullHP;
+	UPROPERTY()
 	float fullMP;
 };
 

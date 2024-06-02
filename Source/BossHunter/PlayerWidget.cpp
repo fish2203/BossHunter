@@ -7,11 +7,13 @@
 #include <Components/TextBlock.h>
 #include <Components/ProgressBar.h>
 #include "Test_Boss.h"
-#include "BossFsmTest.h"
+#include "Boss/BossFsmTest.h"
 #include "BossHunterGameMode.h"
 #include "BossRoomGameStateBase.h"
 #include <Components/Button.h>
 #include <Components/Image.h>
+#include "RestartBossZone.h"
+#include "GateBattleBoss.h"
 //UGameplayStatics
 
 
@@ -19,17 +21,20 @@
 void UPlayerWidget::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
+
+    // player 찾기
 	player = Cast<ABossHunterCharacter>(GetOwningPlayer()->GetPawn());
     if (player != nullptr)
     {
         gunPlayer = Cast<AGunPlayer>(player);
         if (gunPlayer) {
-            HPBarText->SetText(FText::FromString(FString::Printf(TEXT("%0.2f / %0.2f"), gunPlayer->statment.healthPoint, gunPlayer->statment.fullHP)));
-            MPBarText->SetText(FText::FromString(FString::Printf(TEXT("%0.2f / %0.2f"), gunPlayer->statment.manaPoint, gunPlayer->statment.fullMP)));
-            statText->SetText(FText::FromString(FString::Printf(TEXT("AP : %0.2f\nDP : %0.2f\nASP : %0.2f\nMSP : %0.2f\nCP : %0.2f\n"), gunPlayer->statment.attackPoint, gunPlayer->statment.defancePoint, gunPlayer->statment.attackSpeedPoint, gunPlayer->statment.moveSpeedPoint, gunPlayer->statment.coolTimePoint)));
+            HPBarText->SetText(FText::FromString(FString::Printf(TEXT("%0.0f / %0.0f"), gunPlayer->statment.healthPoint, gunPlayer->statment.fullHP)));
+            MPBarText->SetText(FText::FromString(FString::Printf(TEXT("%0.0f / %0.0f"), gunPlayer->statment.manaPoint, gunPlayer->statment.fullMP)));
+            statText->SetText(FText::FromString(FString::Printf(TEXT("AP : %0.0f\nDP : %0.0f\nASP : %0.1f\nMSP : %0.0f\nCP : %0.1f"), gunPlayer->statment.attackPoint, gunPlayer->statment.defancePoint, gunPlayer->statment.attackSpeedPoint, gunPlayer->statment.moveSpeedPoint, gunPlayer->statment.coolTimePoint)));
         }
     }
 
+    // 보스 찾기
     TArray<AActor*> ActorsWithTag;
     UGameplayStatics::GetAllActorsWithTag(GetWorld(), TEXT("boss"), ActorsWithTag);
     for (AActor* Actor : ActorsWithTag)
@@ -40,24 +45,18 @@ void UPlayerWidget::NativeOnInitialized()
         }
     }
 
-
-
-    //float maxbossHP = 3;
-    //float currbossHP = 0;
-    
-    //임시로 보스를 찾을때
-  /*  AActor * BossActor = UGameplayStatics::GetActorOfClass(GetWorld(), ATest_Boss::StaticClass());
-    monster = Cast<ATest_Boss>(BossActor);*/
+    // 보스 체력바 표기
     if (monster != nullptr)
     {
-    monster->currbossHP = monster->maxbossHP;
-    text_MonsterHP->SetText(FText::FromString(FString::Printf(TEXT("%0.2f / %0.2f"), monster->currbossHP, monster->maxbossHP)));
-    //UE_LOG(LogTemp, Warning, TEXT(" boss hp : %f"), monster->currbossHP);
+        monster->currbossHP = monster->maxbossHP;
+        text_MonsterHP->SetText(FText::FromString(FString::Printf(TEXT("%0.0f / %0.0f"), monster->currbossHP, monster->maxbossHP)));
     }
 
-    gamestate = Cast<ABossRoomGameStateBase>(GetWorld()->GetGameState());
+    // 게임 스테이트 받아오기
+    gamestate = ABossRoomGameStateBase::Get();
 
     //UButton
+    //보스존으로 같이 이동하는 버튼
     Btn_restart->OnClicked.AddDynamic(this, &UPlayerWidget::OnClickRestarGame);
 
     // inventory
@@ -69,101 +68,120 @@ void UPlayerWidget::NativeOnInitialized()
     inventory.Add(slot_6);
     inventory.Add(slot_7);
     inventory.Add(slot_8);
+
 }
 
 void UPlayerWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
+
+    // 몬스터 있으면 체력 표기
     if (monster) {
+        text_MonsterHP->SetText(FText::FromString(FString::Printf(TEXT("%0.0f / %0.0f"), monster->currbossHP, monster->maxbossHP)));
         MonsterHP->SetPercent(monster->currbossHP / monster->maxbossHP);
     }
-    else {
-        //UE_LOG(LogTemp, Warning, TEXT("Player Widget: No Monster"));
-    }
+
+    // 건 플레이어 전용
     if (gunPlayer) {
-        HPBarText->SetText(FText::FromString(FString::Printf(TEXT("%0.2f / %0.2f"), gunPlayer->statment.healthPoint, gunPlayer->statment.fullHP)));
-        MPBarText->SetText(FText::FromString(FString::Printf(TEXT("%0.2f / %0.2f"), gunPlayer->statment.manaPoint, gunPlayer->statment.fullMP)));
-        statText->SetText(FText::FromString(FString::Printf(TEXT("AP : %0.2f\nDP : %0.2f\nASP : %0.2f\nMSP : %0.2f\nCP : %0.2f\n"), gunPlayer->statment.attackPoint, gunPlayer->statment.defancePoint, gunPlayer->statment.attackSpeedPoint, gunPlayer->statment.moveSpeedPoint, gunPlayer->statment.coolTimePoint)));
+        HPBarText->SetText(FText::FromString(FString::Printf(TEXT("%0.0f / %0.0f"), gunPlayer->statment.healthPoint, gunPlayer->statment.fullHP)));
+        MPBarText->SetText(FText::FromString(FString::Printf(TEXT("%0.0f / %0.0f"), gunPlayer->statment.manaPoint, gunPlayer->statment.fullMP)));
         HealthBar->SetPercent(gunPlayer->statment.healthPoint / gunPlayer->statment.fullHP);
         ManaBar->SetPercent(gunPlayer->statment.manaPoint / gunPlayer->statment.fullMP);
+        
+        // 쿨타임 표기
         Q_Btn->SetPercent(gunPlayer->curr_Q / gunPlayer->cool_Q);
         E_Btn->SetPercent(gunPlayer->curr_E / gunPlayer->cool_E);
         F_Btn->SetPercent(gunPlayer->curr_F / gunPlayer->cool_F);
         R_Btn->SetPercent(gunPlayer->curr_R / gunPlayer->cool_R);
+        SP_Btn->SetPercent(gunPlayer->curr_SP / gunPlayer->cool_SP);
 
-        if (Q_Text->IsHovered()) {
-            ExplainText->SetText(FText::FromString(FString::Printf(TEXT("무기 교체\n on/off가 가능하며 무기를 바꿀 경우 전체 스킬 및 평타 둔화, 공격력 상승 효과가 있습니다."))));
+        // 스킬 설명
+        if (Q_Btn->IsHovered()) {
+            SkillNameText->SetText(FText::FromString(FString::Printf(TEXT("내려찍기"))));
+            statText->SetText(FText::FromString(FString::Printf(TEXT("\n\n적을 날림\n마나소모량 20"))));
         }
-        else if (E_Text->IsHovered()) {
-            ExplainText->SetText(FText::FromString(FString::Printf(TEXT("레이저\n 맞추면 2초간 몬스터 둔화 효과를 주며, 2*%0.1f의 피해를 입힙니다."), gunPlayer->statment.attackPoint)));
+        else if (E_Btn->IsHovered()) {
+            SkillNameText->SetText(FText::FromString(FString::Printf(TEXT("레이저"))));
+            statText->SetText(FText::FromString(FString::Printf(TEXT("\n\n2초 둔화\n2*%0.0f의 피해\n마나소모량 20"), gunPlayer->statment.attackPoint)));
         }
-        else if (F_Text->IsHovered()) {
-            ExplainText->SetText(FText::FromString(FString::Printf(TEXT("폭탄\n 소형 폭탄을 던집니다, 3*%0.1f의 피해를 입힙니다."), gunPlayer->statment.attackPoint)));
+        else if (F_Btn->IsHovered()) {
+            SkillNameText->SetText(FText::FromString(FString::Printf(TEXT("폭탄"))));
+            statText->SetText(FText::FromString(FString::Printf(TEXT("\n\n3*%0.0f의 피해\n마나소모량 30"), gunPlayer->statment.attackPoint)));
         }
-        else if (R_Text->IsHovered()) {
-            ExplainText->SetText(FText::FromString(FString::Printf(TEXT("핵폭탄\n 정 가운데를 맞추면 5*%0.1f의 피해, 외곽에 맞출 경우 3*%0.1f의 피해를 입히며 2초간 지속피해를 입힙니다."), gunPlayer->statment.attackPoint, gunPlayer->statment.attackPoint)));
+        else if (R_Btn->IsHovered()) {
+            SkillNameText->SetText(FText::FromString(FString::Printf(TEXT("핵폭틴"))));
+            statText->SetText(FText::FromString(FString::Printf(TEXT("\n\n큰피해 후 지속피해\n마나 소모량 50"), gunPlayer->statment.attackPoint, gunPlayer->statment.attackPoint)));
+        }
+        else if (SP_Btn->IsHovered()) {
+            SkillNameText->SetText(FText::FromString(FString::Printf(TEXT("대쉬"))));
+            statText->SetText(FText::FromString(FString::Printf(TEXT("\n\n회피기\n일정 거리 날아감\n마나 소모량 없음"))));
+        }
+        else if (Passive_Btn->IsHovered()) {
+            SkillNameText->SetText(FText::FromString(FString::Printf(TEXT("과부하"))));
+            statText->SetText(FText::FromString(FString::Printf(TEXT("\n\n패시브\n평타 6타 이속증가\n평타 150타 스턴"))));
         }
         else {
-            ExplainText->SetText(FText::FromString(FString::Printf(TEXT(" "))));
+            SkillNameText->SetText(FText::FromString(FString::Printf(TEXT(""))));
+            statText->SetText(FText::FromString(FString::Printf(TEXT("ATK    :   %0.0f\nDFN    :   %0.0f\nRPM   :   %0.0f\nSPD    :   %0.0f\nCOL    :   %0.0f\n"), gunPlayer->statment.attackPoint, gunPlayer->statment.defancePoint, gunPlayer->statment.attackSpeedPoint, gunPlayer->statment.moveSpeedPoint, gunPlayer->statment.coolTimePoint)));
         }
-        //보스의 현재체력상태를 위젯에 갱신
-        if(monster != nullptr)
-        text_MonsterHP->SetText(FText::FromString(FString::Printf(TEXT("%0.2f / %0.2f"), monster->currbossHP, monster->maxbossHP)));
-    
+    }
+
+    // 맞았을 때 피격 화면 출력
+    if (player->bIsAttacked == true)
+    {
+        BloodImg->SetOpacity(0.3f);
+        bloodOpacity = 0.4f;
+        player->bIsAttacked = false;
+    }
+    else if (bloodOpacity > 0)
+    {
+        bloodOpacity -= InDeltaTime;
+        BloodImg->SetOpacity(bloodOpacity);
     }
 }
 
 void UPlayerWidget::ChangeInventory()
 {
+    // 인벤토리 칸에 아이템 출력
     int32 i = 0;
-    for (int32 index : player->itemIndexArray)
-    {
-        FItem* item = gamestate->itemDataTable->FindRow<FItem>(*FString::FromInt(index), TEXT(""));
-        //UImage 인클루드
-        inventory[i]->SetBrushFromTexture(item->image);
-        i++;
-    }
-}
-
-void UPlayerWidget::DamageProgressBoss(float damage)
-{
-    // HP 를 줄이자
-    monster->currbossHP -= damage;
-
-    // HPBar progress Percent 값 설정 (0 ~ 1)
-    //UUserWidget* widget = this;
-    //UPlayerWidget* playerWidget = Cast<UPlayerWidget>(widget);
-    //#include <Components/ProgressBar.h>
-    //playerWidget->
-    MonsterHP->SetPercent((float)monster->currbossHP / monster->maxbossHP);
-
-    UE_LOG(LogTemp, Warning, TEXT("player widget monseter HP : %f"), monster-> currbossHP);
-
-    if (monster->currbossHP < 0)
-    {
-        
-       //ABossFsmTest
-        monsterFsm->ChangeState(EEnemyState::DIE);
-        monster->SetActorEnableCollision(false);
+    int32 num = player->itemIndexArray.Num() - 1;
+    if (num >= 0) {
+        for (int32 index : player->itemIndexArray)
+        {
+            // 사용한 아이템은 삭제
+            if (index == 0)
+            {
+                player->itemIndexArray.Remove(index);
+                continue;
+            }
+            FItem* item = gamestate->itemDataTable->FindRow<FItem>(*FString::FromInt(index), TEXT(""));
+            //UImage 인클루드
+            inventory[i]->SetBrushFromTexture(item->image);
+            i++;
+        }
     }
 
-    //만약에 HP 가 0보다 크면
-    //if (currHP > 0)
-    //{
-    // DAMAGE 상태로 전환
-    //    fsm->ChangeState(EEnemyState::DAMAGE);
-    //}
-    // 그렇지 않으면 (HP 가 0)
-    //else
-    //{
-    //    // DIE 로 상태로 전환
-    //    fsm->ChangeState(EEnemyState::DIE);
-    //}
+    if (i <= 7)
+    {
+        while(i <= 7)
+        {
+            FItem* item = gamestate->itemDataTable->FindRow<FItem>(*FString::FromInt(0), TEXT(""));
+            inventory[i]->SetBrushFromTexture(item->image);
+            i++;
+        }
+    }
 }
 
 void UPlayerWidget::OnClickRestarGame()
 {
-    
+    //UWidget* restartBossZone = GetWidgetFromName(FName("restart"));
+    AActor* findGate = UGameplayStatics::GetActorOfClass(GetWorld(), AGateBattleBoss::StaticClass());
+    gateBossZone = Cast<AGateBattleBoss>(findGate);
+    gateBossZone->viewRestartWidget();
+    //URestartBossZone
+    //restartBossZone->SetVisibility(ESlateVisibility::Visible);
+
+    /*
     AGameModeBase* findgm = UGameplayStatics::GetGameMode(GetWorld());
     bhGameMode = Cast<ABossHunterGameMode>(findgm);
     if (findgm == nullptr)
@@ -171,5 +189,5 @@ void UPlayerWidget::OnClickRestarGame()
     return;
     }
     bhGameMode->URLTravel();
+    */
 }
-

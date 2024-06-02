@@ -35,7 +35,7 @@ public:
 	class UStaticMeshComponent* meshComp;
 
 	UFUNCTION()
-	void OnOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);\
+	void OnOverlap(UPrimitiveComponent* abc, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	void URLTravel();
 	UFUNCTION(Server, Reliable)
@@ -48,9 +48,21 @@ public:
 	//#include "Interfaces/OnlineSessionInterface.h"
 	//void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type result);
 
+	//보스게이트에 위젯을 담아놓자.
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<class UMoveBossZoneWidget> moveWidgetPackage;
 	UPROPERTY()
 	class UMoveBossZoneWidget* movewidgetPointer;
+
+	//다시하기 위젯을 담아놓자.
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class URestartBossZone> restartbosszonePackage;
+	UPROPERTY()
+	class URestartBossZone* restartBossZone;
+	//보스존을 다시시작하자.
+	UFUNCTION()
+	void viewRestartWidget();
+
+	class ABossRoomGameStateBase* gamestate;
 
 };

@@ -30,8 +30,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	class UProjectileMovementComponent* ProjectileMovementComponent;
 
+	// 공격 성공시 이펙트
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	class UParticleSystem* particleSystem;
+
+	// 공격 실패시 이펙트
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	class UParticleSystem* failParticleSystem;
+
+	// 터지는 효과음
+	UPROPERTY(EditAnywhere)
+	class USoundBase* F_Active_Sound;
+
 	class ATest_Boss* monster;
 
 	int32 bounceCount = 0;

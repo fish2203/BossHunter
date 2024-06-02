@@ -63,12 +63,17 @@ void AGunPlayer_Bomb::Tick(float DeltaTime)
 		bounceCount++;
 		if (hitInfo.GetActor())
 		{
-			if (hitInfo.GetActor()->ActorHasTag("boss") || bounceCount >= 3)
+			if (hitInfo.GetActor()->ActorHasTag("boss") || bounceCount >= 3) // 공격 성공시
 			{
 				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), particleSystem, GetActorLocation());
 				AGunPlayer* player = Cast<AGunPlayer>(GetOwner());
 				player->ServerRPC_AttackBoss(3);
 			}
+			else // 공격 실패시
+			{
+				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), failParticleSystem, GetActorLocation());
+			}
+			UGameplayStatics::SpawnSoundAtLocation(GetWorld(), F_Active_Sound, GetActorLocation());
 			Destroy();
 		}
 	}

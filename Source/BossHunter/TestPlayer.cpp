@@ -12,12 +12,12 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 //º¸½º hp
-#include "BossHPBarTest.h"
+#include "Boss/BossHPBarTest.h"
 //#include <Components/ProgressBar.h>
 //#include <Blueprint/UserWidget.h>
 #include "Test_Boss.h"
 #include <Kismet/GameplayStatics.h>
-#include "BossFsmTest.h"
+#include "Boss/BossFsmTest.h"
 
 
 //DEFINE_LOG_CATEGORY(LogTemplateCharacter);

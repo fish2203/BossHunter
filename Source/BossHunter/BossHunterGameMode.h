@@ -25,6 +25,11 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MultiRPC_URLTravel();
 
+
+public:
+	/*UPROPERTY()
+	int32 gold;*/
+
 };
 
 
